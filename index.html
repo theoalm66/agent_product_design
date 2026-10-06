@@ -218,6 +218,26 @@ button{font-family:var(--font-body);cursor:pointer}
 .wf-agent-tag.prd{color:var(--c-prd);border-color:var(--c-prd)}
 .wf-agent-tag.critic{color:var(--c-critic);border-color:var(--c-critic)}
 .wf-agent-tag.ticket{color:var(--c-ticket);border-color:var(--c-ticket)}
+
+/* prompts tab */
+.prompts-intro{color:var(--fg-dim);font-size:.86rem;line-height:1.55;max-width:75ch;margin:0}
+.prompt-card{border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--panel-2)}
+.prompt-card + .prompt-card{margin-top:14px}
+.prompt-card-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.prompt-card-head h3{font-size:1rem}
+.prompt-version-badge{font-family:var(--font-mono);font-size:.7rem;color:var(--fg-dim);border:1px solid var(--line);border-radius:999px;padding:2px 9px;margin-left:auto}
+.prompt-version-badge.edited{color:var(--accent);border-color:var(--accent)}
+.prompt-desc{color:var(--fg-dim);font-size:.82rem;margin:-4px 0 0}
+.prompt-textarea{width:100%;min-height:140px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-family:var(--font-mono);font-size:.82rem;line-height:1.5;resize:vertical}
+.prompt-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.prompt-versions{margin-top:2px}
+.prompt-versions summary{cursor:pointer;font-family:var(--font-mono);font-size:.76rem;color:var(--fg-dim)}
+.prompt-version-list{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.prompt-version-list li{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:.78rem;background:var(--panel)}
+.prompt-version-list li.active{border-color:var(--accent)}
+.prompt-version-list .v-label{font-family:var(--font-mono);color:var(--fg-dim)}
+.prompt-version-list li.active .v-label{color:var(--accent)}
+.prompt-version-list .v-time{color:var(--fg-dim);flex:1}
 </style>
 </head>
 <body>
@@ -251,6 +271,7 @@ button{font-family:var(--font-body);cursor:pointer}
   <nav class="tabbar" id="tabbar" role="tablist" aria-label="Bereiche">
     <button class="tab-btn active" id="tabBtnApp" type="button" role="tab" aria-selected="true" aria-controls="tabApp">Workflow starten</button>
     <button class="tab-btn" id="tabBtnDiagram" type="button" role="tab" aria-selected="false" aria-controls="tabDiagram">Diagramm</button>
+    <button class="tab-btn" id="tabBtnPrompts" type="button" role="tab" aria-selected="false" aria-controls="tabPrompts">Prompts</button>
     <button class="tab-btn" id="tabBtnHistory" type="button" role="tab" aria-selected="false" aria-controls="tabHistory">Verlauf <span id="historyBtnCount" class="tab-badge"></span></button>
   </nav>
 
@@ -402,6 +423,12 @@ button{font-family:var(--font-body);cursor:pointer}
       <div class="wf-step-row"><div class="wf-step-num">8</div><div class="wf-step-txt"><b>Kanban-Board</b> – die geparsten Tickets werden nach Priorität sortiert direkt in der App gerendert, statt sie an Jira/Linear zu übergeben.</div></div>
       <div class="wf-step-row"><div class="wf-step-num">9</div><div class="wf-step-txt"><b>Verlauf &amp; neuer Durchlauf</b> – der Durchlauf wird automatisch gespeichert; „Neuen Durchlauf starten“ setzt die App zurück, ohne den Verlauf zu löschen.</div></div>
     </div>
+  </section>
+
+  <section class="panel prompts-panel tab-panel" id="tabPrompts" hidden>
+    <h2>System-Prompts bearbeiten &amp; versionieren</h2>
+    <p class="prompts-intro">Jeder Agent nutzt einen festen System-Prompt. Hier lässt sich jeder davon anpassen und ausprobieren, wie sich das Verhalten ändert. Jedes Speichern legt eine neue Version an statt die alte zu überschreiben; frühere Versionen lassen sich jederzeit wieder aktivieren, und „Auf Original zurücksetzen“ stellt den mitgelieferten Prompt wieder her.</p>
+    <div id="promptList"></div>
   </section>
 
   <section class="panel settings" id="settingsPanel" hidden>
@@ -879,7 +906,7 @@ button{font-family:var(--font-body);cursor:pointer}
   checkConnection();
 
   // ==================================================================
-  // system prompts
+  // system prompts (editierbar & versioniert, siehe "Prompts"-Tab)
   // ==================================================================
   var SYS_PRD_INITIAL =
 "Du bist ein erfahrener Product Manager. Du bekommst das Transkript eines Stakeholder-Meetings. "+
@@ -905,6 +932,54 @@ button{font-family:var(--font-body);cursor:pointer}
 "Antworte AUSSCHLIESSLICH mit validem JSON, ohne Markdown-Codeblock, ohne Fließtext davor oder danach, in exakt diesem Format: "+
 '{"tickets":[{"title":"string","type":"feature|bug|chore","priority":"hoch|mittel|niedrig","description":"string","acceptanceCriteria":["string"]}]}. '+
 "Erzeuge 4 bis 10 Tickets, die zusammen den Scope des PRD abdecken. Priorität „hoch“ nur für Dinge, die für eine erste nutzbare Version zwingend nötig sind.";
+
+  var PROMPT_DEFS = [
+    { id:"prdInitial", agent:"PRDAgent", agentClass:"prd", label:"Generate Initial PRD", desc:"Erzeugt aus dem Transkript das erste PRD.", get default(){ return SYS_PRD_INITIAL; } },
+    { id:"critic", agent:"Kritiker-Agent", agentClass:"critic", label:"Get Feedback", desc:"Bewertet das PRD und liefert das Verdikt (bereit / Überarbeitung nötig).", get default(){ return SYS_CRITIC; } },
+    { id:"refine", agent:"PRDAgent", agentClass:"prd", label:"Refine PRD", desc:"Überarbeitet das PRD anhand des Kritiker-Feedbacks.", get default(){ return SYS_REFINE; } },
+    { id:"tickets", agent:"TicketCreationAgent", agentClass:"ticket", label:"Parse PRD into Structured Output", desc:"Wandelt das finale PRD in Tickets (JSON) um.", get default(){ return SYS_TICKETS; } }
+  ];
+
+  var promptVersions = {};
+  function loadPromptVersions(){
+    try{
+      var raw = localStorage.getItem("pda_prompt_versions");
+      if(raw) promptVersions = JSON.parse(raw);
+    }catch(e){}
+    if(!promptVersions || typeof promptVersions !== "object") promptVersions = {};
+  }
+  function savePromptVersions(){
+    try{ localStorage.setItem("pda_prompt_versions", JSON.stringify(promptVersions)); }catch(e){}
+  }
+  function getPromptDef(id){ return PROMPT_DEFS.filter(function(p){ return p.id===id; })[0]; }
+  function getEffectivePrompt(id){
+    var pv = promptVersions[id];
+    if(pv && typeof pv.activeIndex === "number" && pv.activeIndex >= 0 && pv.versions[pv.activeIndex]){
+      return pv.versions[pv.activeIndex].text;
+    }
+    return getPromptDef(id).default;
+  }
+  function getPromptVersionLabel(id){
+    var pv = promptVersions[id];
+    if(!pv || typeof pv.activeIndex !== "number" || pv.activeIndex < 0) return "Original";
+    return "v" + (pv.activeIndex + 1) + " von " + pv.versions.length;
+  }
+  function saveNewPromptVersion(id, text){
+    if(!promptVersions[id]) promptVersions[id] = { versions: [], activeIndex: -1 };
+    promptVersions[id].versions.push({ text: text, savedAt: new Date().toISOString() });
+    promptVersions[id].activeIndex = promptVersions[id].versions.length - 1;
+    savePromptVersions();
+  }
+  function setActivePromptVersion(id, index){
+    if(!promptVersions[id]) return;
+    promptVersions[id].activeIndex = index;
+    savePromptVersions();
+  }
+  function resetPromptToOriginal(id){
+    if(!promptVersions[id]) return;
+    promptVersions[id].activeIndex = -1;
+    savePromptVersions();
+  }
 
   // ==================================================================
   // DOM refs for workflow
@@ -960,9 +1035,10 @@ button{font-family:var(--font-body);cursor:pointer}
     stepTickets.hidden = true;
 
     setBusy(generatePrdBtn, "generiert…");
-    var traceLi = addTrace("PRDAgent", "Generate Initial PRD …", SYS_PRD_INITIAL, transcript, null, "now");
+    var promptPrdInitial = getEffectivePrompt("prdInitial");
+    var traceLi = addTrace("PRDAgent", "Generate Initial PRD …", promptPrdInitial, transcript, null, "now");
     try{
-      var prd = await callChat(SYS_PRD_INITIAL, "Meeting-Transkript:\n\n"+transcript);
+      var prd = await callChat(promptPrdInitial, "Meeting-Transkript:\n\n"+transcript);
       app.prd = prd;
       app.iteration = 1;
       traceLi.className = "";
@@ -1004,9 +1080,10 @@ button{font-family:var(--font-body);cursor:pointer}
     setBusy(getFeedbackBtn, "holt Feedback…");
     decisionArea.hidden = true;
     var userMsg = "Aktuelles PRD (Durchlauf "+app.iteration+"):\n\n"+app.prd;
-    var traceLi = addTrace("Kritiker-Agent", "Get Feedback …", SYS_CRITIC, userMsg, null, "now");
+    var promptCritic = getEffectivePrompt("critic");
+    var traceLi = addTrace("Kritiker-Agent", "Get Feedback …", promptCritic, userMsg, null, "now");
     try{
-      var feedback = await callChat(SYS_CRITIC, userMsg);
+      var feedback = await callChat(promptCritic, userMsg);
       var isClean = /^VERDIKT:\s*BEREIT/i.test(feedback.trim());
       app.lastFeedback = feedback;
       app.lastFeedbackClean = isClean;
@@ -1087,9 +1164,10 @@ button{font-family:var(--font-body);cursor:pointer}
     if(!requireConfigured()) return;
     decisionArea.innerHTML = "<span class=\"spinner\"><span class=\"dot\"></span>PRD wird überarbeitet…</span>";
     var userMsg = "Bisheriges PRD:\n\n"+app.prd+"\n\nReviewer-Feedback:\n\n"+app.lastFeedback;
-    var traceLi = addTrace("PRDAgent", "Refine PRD …", SYS_REFINE, userMsg, null, "now");
+    var promptRefine = getEffectivePrompt("refine");
+    var traceLi = addTrace("PRDAgent", "Refine PRD …", promptRefine, userMsg, null, "now");
     try{
-      var newPrd = await callChat(SYS_REFINE, userMsg);
+      var newPrd = await callChat(promptRefine, userMsg);
       app.prd = newPrd;
       app.iteration += 1;
       traceLi.className = "";
@@ -1151,9 +1229,10 @@ button{font-family:var(--font-body);cursor:pointer}
     if(!app.finalPrd) return;
     setBusy(generateTicketsBtn, "generiert…");
     ticketsArea.innerHTML = "<span class=\"spinner\"><span class=\"dot\"></span>Parse PRD into Structured Output…</span>";
-    var traceLi = addTrace("TicketCreationAgent", "Parse PRD into Structured Output …", SYS_TICKETS, app.finalPrd, null, "now");
+    var promptTickets = getEffectivePrompt("tickets");
+    var traceLi = addTrace("TicketCreationAgent", "Parse PRD into Structured Output …", promptTickets, app.finalPrd, null, "now");
     try{
-      var raw = await callChat(SYS_TICKETS, "PRD:\n\n"+app.finalPrd);
+      var raw = await callChat(promptTickets, "PRD:\n\n"+app.finalPrd);
       app.ticketsRaw = raw;
       var parsed = tryParseTickets(raw);
       if(!parsed || !Array.isArray(parsed.tickets)) throw new Error("JSON hat nicht das erwartete Format ({tickets:[...]})");
@@ -1278,6 +1357,7 @@ button{font-family:var(--font-body);cursor:pointer}
   var TABS = [
     { btn: "tabBtnApp", panel: "tabApp" },
     { btn: "tabBtnDiagram", panel: "tabDiagram" },
+    { btn: "tabBtnPrompts", panel: "tabPrompts" },
     { btn: "tabBtnHistory", panel: "tabHistory" }
   ];
   function setActiveTab(panelId){
@@ -1402,6 +1482,129 @@ button{font-family:var(--font-body);cursor:pointer}
     addTrace("SYS", "Neuer Durchlauf gestartet.");
     document.getElementById("stepInput").scrollIntoView({behavior:"smooth", block:"start"});
   });
+
+  // ==================================================================
+  // Prompts-Tab: System-Prompts bearbeiten & versionieren
+  // ==================================================================
+  var promptList = document.getElementById("promptList");
+
+  function renderPromptList(){
+    promptList.innerHTML = "";
+    PROMPT_DEFS.forEach(function(def){
+      promptList.appendChild(buildPromptCard(def));
+    });
+  }
+
+  function buildPromptCard(def){
+    var card = document.createElement("div");
+    card.className = "prompt-card";
+
+    var head = document.createElement("div");
+    head.className = "prompt-card-head";
+    var agentTag = document.createElement("span");
+    agentTag.className = "wf-agent-tag " + def.agentClass;
+    agentTag.textContent = def.agent;
+    var h3 = document.createElement("h3");
+    h3.textContent = def.label;
+    var versionBadge = document.createElement("span");
+    versionBadge.className = "prompt-version-badge";
+    head.appendChild(agentTag);
+    head.appendChild(h3);
+    head.appendChild(versionBadge);
+    card.appendChild(head);
+
+    var desc = document.createElement("p");
+    desc.className = "prompt-desc";
+    desc.textContent = def.desc;
+    card.appendChild(desc);
+
+    var textarea = document.createElement("textarea");
+    textarea.className = "prompt-textarea";
+    textarea.id = "promptText_" + def.id;
+    card.appendChild(textarea);
+
+    var actions = document.createElement("div");
+    actions.className = "prompt-actions";
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "btn small"; saveBtn.type = "button";
+    saveBtn.textContent = "Als neue Version speichern";
+    var resetBtn = document.createElement("button");
+    resetBtn.className = "btn secondary small"; resetBtn.type = "button";
+    resetBtn.textContent = "Auf Original zurücksetzen";
+    var note = document.createElement("span");
+    note.className = "save-note"; note.hidden = true; note.textContent = "gespeichert";
+    actions.appendChild(saveBtn);
+    actions.appendChild(resetBtn);
+    actions.appendChild(note);
+    card.appendChild(actions);
+
+    var versionsDetails = document.createElement("details");
+    versionsDetails.className = "prompt-versions";
+    var summary = document.createElement("summary");
+    var versionCount = (promptVersions[def.id] && promptVersions[def.id].versions.length) || 0;
+    summary.textContent = "Versionsverlauf (" + versionCount + ")";
+    versionsDetails.appendChild(summary);
+    var versionUl = document.createElement("ul");
+    versionUl.className = "prompt-version-list";
+    versionsDetails.appendChild(versionUl);
+    card.appendChild(versionsDetails);
+
+    function refresh(){
+      textarea.value = getEffectivePrompt(def.id);
+      var label = getPromptVersionLabel(def.id);
+      versionBadge.textContent = label;
+      versionBadge.className = "prompt-version-badge" + (label === "Original" ? "" : " edited");
+      resetBtn.disabled = (label === "Original");
+
+      var pv = promptVersions[def.id];
+      var versions = (pv && pv.versions) || [];
+      summary.textContent = "Versionsverlauf (" + versions.length + ")";
+      versionUl.innerHTML = "";
+      if(!versions.length){
+        var li0 = document.createElement("li");
+        li0.textContent = "Noch keine gespeicherten Versionen – es läuft der Original-Prompt.";
+        versionUl.appendChild(li0);
+      } else {
+        versions.forEach(function(v, i){
+          var li = document.createElement("li");
+          if(pv.activeIndex === i) li.className = "active";
+          var vLabel = document.createElement("span");
+          vLabel.className = "v-label"; vLabel.textContent = "v" + (i+1);
+          var vTime = document.createElement("span");
+          vTime.className = "v-time"; vTime.textContent = fmtDateTime(v.savedAt);
+          var activateBtn = document.createElement("button");
+          activateBtn.className = "btn secondary small"; activateBtn.type = "button";
+          activateBtn.textContent = pv.activeIndex === i ? "aktiv" : "aktivieren";
+          activateBtn.disabled = pv.activeIndex === i;
+          activateBtn.addEventListener("click", function(){
+            setActivePromptVersion(def.id, i);
+            refresh();
+          });
+          li.appendChild(vLabel);
+          li.appendChild(vTime);
+          li.appendChild(activateBtn);
+          versionUl.appendChild(li);
+        });
+      }
+    }
+
+    saveBtn.addEventListener("click", function(){
+      saveNewPromptVersion(def.id, textarea.value);
+      refresh();
+      note.hidden = false;
+      setTimeout(function(){ note.hidden = true; }, 2000);
+    });
+    resetBtn.addEventListener("click", function(){
+      resetPromptToOriginal(def.id);
+      refresh();
+    });
+
+    refresh();
+    return card;
+  }
+
+  loadPromptVersions();
+  renderPromptList();
 
   loadHistory();
   renderHistory();
