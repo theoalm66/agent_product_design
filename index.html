@@ -12,7 +12,7 @@ html,body{margin:0}
   --bg:#f3f4f6; --panel:#ffffff; --panel-2:#eceef1; --line:#d9dce1;
   --fg:#15181d; --fg-dim:#5c6672;
   --accent:#2458b3; --accent-ink:#f4f8ff;
-  --c-prd:#2458b3; --c-critic:#a6305a; --c-ticket:#157a6e;
+  --c-prd:#2458b3; --c-critic:#a6305a; --c-ticket:#157a6e; --c-neutral:#5c6672;
   --live:#c23b2e; --good:#1f8f66; --danger:#c23b2e;
   --prio-high:#c23b2e; --prio-mid:#b5790a; --prio-low:#5c6672;
   --font-display:'Fraunces','Iowan Old Style',serif;
@@ -25,7 +25,7 @@ html,body{margin:0}
     --bg:#11151b; --panel:#171c24; --panel-2:#1e2430; --line:#2b323e;
     --fg:#edf0f4; --fg-dim:#9aa5b3;
     --accent:#6ea0ff; --accent-ink:#0c1930;
-    --c-prd:#6ea0ff; --c-critic:#e573a0; --c-ticket:#4bc7b4;
+    --c-prd:#6ea0ff; --c-critic:#e573a0; --c-ticket:#4bc7b4; --c-neutral:#9aa5b3;
     --live:#ff6b5b; --good:#4fd49b; --danger:#ff6b5b;
     --prio-high:#ff6b5b; --prio-mid:#e2a63d; --prio-low:#9aa5b3;
     color-scheme: dark;
@@ -35,7 +35,7 @@ html,body{margin:0}
   --bg:#11151b; --panel:#171c24; --panel-2:#1e2430; --line:#2b323e;
   --fg:#edf0f4; --fg-dim:#9aa5b3;
   --accent:#6ea0ff; --accent-ink:#0c1930;
-  --c-prd:#6ea0ff; --c-critic:#e573a0; --c-ticket:#4bc7b4;
+  --c-prd:#6ea0ff; --c-critic:#e573a0; --c-ticket:#4bc7b4; --c-neutral:#9aa5b3;
   --live:#ff6b5b; --good:#4fd49b; --danger:#ff6b5b;
   --prio-high:#ff6b5b; --prio-mid:#e2a63d; --prio-low:#9aa5b3;
   color-scheme: dark;
@@ -174,6 +174,36 @@ button{font-family:var(--font-body);cursor:pointer}
 .history-item summary .h-meta{font-family:var(--font-mono);font-size:.72rem;color:var(--fg-dim);display:flex;gap:10px;flex-wrap:wrap}
 .history-item .h-body{padding:0 12px 14px;display:flex;flex-direction:column;gap:12px}
 .history-item .h-actions{display:flex;gap:8px}
+
+/* workflow diagram panel */
+.wf-panel{padding:16px;display:flex;flex-direction:column;gap:16px}
+.wf-panel h2{font-size:1.05rem}
+.wf-intro{color:var(--fg-dim);font-size:.86rem;line-height:1.55;max-width:70ch;margin:0}
+.wf-legend{display:flex;flex-wrap:wrap;gap:14px;font-family:var(--font-mono);font-size:.72rem;color:var(--fg-dim)}
+.wf-legend .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.wf-legend .sw.prd{background:var(--c-prd)} .wf-legend .sw.critic{background:var(--c-critic)} .wf-legend .sw.ticket{background:var(--c-ticket)} .wf-legend .sw.neutral{background:var(--c-neutral)}
+.wf-diagram-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel-2)}
+.wf-diagram-scroll svg{display:block;width:100%;min-width:1040px;height:auto}
+.wf-box{fill:var(--panel);stroke:var(--line)}
+.wf-diamond{fill:var(--panel);stroke:var(--line)}
+.wf-group{fill:none;stroke-dasharray:5 5}
+.wf-title{font-family:var(--font-body);font-weight:600;font-size:14px;fill:var(--fg)}
+.wf-sub{font-family:var(--font-mono);font-size:10.5px;fill:var(--fg-dim)}
+.wf-grouplabel{font-family:var(--font-mono);font-size:12px;font-style:italic;letter-spacing:.02em}
+.wf-arrow{fill:none;stroke:var(--fg-dim);stroke-width:1.6}
+.wf-arrow-dashed{fill:none;stroke:var(--fg-dim);stroke-width:1.6;stroke-dasharray:6 5}
+.wf-arrowlabel{font-family:var(--font-mono);font-size:10.5px;fill:var(--fg-dim)}
+.wf-badge-num{font-family:var(--font-mono);font-size:12px;font-weight:600;fill:var(--accent-ink)}
+.wf-caption{font-size:.82rem;color:var(--fg-dim);line-height:1.5;max-width:75ch;margin:0}
+.wf-steps{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.wf-step-row{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:11px 14px;border-top:1px solid var(--line);background:var(--panel-2)}
+.wf-step-row:first-child{border-top:none}
+.wf-step-num{font-family:var(--font-mono);font-size:.8rem;color:var(--fg-dim)}
+.wf-step-txt{font-size:.86rem;line-height:1.5}
+.wf-agent-tag{font-family:var(--font-mono);font-size:.64rem;border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:5px;white-space:nowrap}
+.wf-agent-tag.prd{color:var(--c-prd);border-color:var(--c-prd)}
+.wf-agent-tag.critic{color:var(--c-critic);border-color:var(--c-critic)}
+.wf-agent-tag.ticket{color:var(--c-ticket);border-color:var(--c-ticket)}
 </style>
 </head>
 <body>
@@ -190,6 +220,7 @@ button{font-family:var(--font-body);cursor:pointer}
     <div class="topbar-actions">
       <span class="status-text" id="statusText">nicht verbunden</span>
       <button class="icon-btn text" id="historyBtn" aria-label="Verlauf" aria-expanded="false">VERLAUF <span id="historyBtnCount"></span></button>
+      <button class="icon-btn text" id="workflowBtn" aria-label="Workflow-Diagramm" aria-expanded="false">WORKFLOW</button>
       <button class="icon-btn" id="helpBtn" aria-label="Hilfe" aria-expanded="false">?</button>
       <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen" aria-expanded="false">⚙</button>
     </div>
@@ -222,6 +253,127 @@ button{font-family:var(--font-body);cursor:pointer}
     </div>
     <p class="hint">Jeder abgeschlossene Durchlauf (PRD + Tickets) wird hier lokal im Browser gespeichert, damit mehrere Produkte/Transkripte nacheinander durchgespielt werden können.</p>
     <div id="historyList"></div>
+  </section>
+
+  <section class="panel wf-panel" id="workflowPanel" hidden>
+    <h2>Agenten-Workflow: PRD-zu-Tickets-Pipeline</h2>
+    <p class="wf-intro">Nummerierter Ablauf dieser App: vom Meeting-Transkript über die PRD-Verfeinerungsschleife bis zum Ticket-Board. Jede Nummer entspricht genau einem LLM-Aufruf mit eigenem System-Prompt.</p>
+    <div class="wf-legend">
+      <span><span class="sw prd"></span>PRDAgent</span>
+      <span><span class="sw critic"></span>Kritiker-Agent</span>
+      <span><span class="sw ticket"></span>TicketCreationAgent</span>
+      <span><span class="sw neutral"></span>Mensch / System</span>
+    </div>
+
+    <figure style="margin:0;display:flex;flex-direction:column;gap:12px">
+      <div class="wf-diagram-scroll">
+        <svg viewBox="0 0 1620 770" role="img" aria-label="Flowdiagramm: Schritt 1 Meeting-Transkript führt in die PRDAgent-Schleife (2 Generate Initial PRD, 3 Get Feedback durch den Kritiker-Agent, 4 Entscheidung PRD Refinement nötig, bei Nein 5 Refine PRD zurück zu Schritt 3, bei Ja weiter), dann 6 Final PRD, 7 TicketCreationAgent parst das PRD zu JSON-Tickets, 8 Kanban-Board als Ausgabe, 9 Verlauf speichern und per gestricheltem Pfeil zurück zu Schritt 1 für einen neuen Durchlauf.">
+          <defs>
+            <marker id="wfArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--fg-dim)"></path>
+            </marker>
+          </defs>
+
+          <rect class="wf-box" x="30" y="310" width="170" height="70" rx="12"></rect>
+          <circle cx="30" cy="310" r="15" fill="var(--c-neutral)"></circle>
+          <text class="wf-badge-num" x="30" y="310" text-anchor="middle" dominant-baseline="central">1</text>
+          <text class="wf-title" x="115" y="338" text-anchor="middle">Meeting-Transkript</text>
+          <text class="wf-sub" x="115" y="356" text-anchor="middle">Eingabe</text>
+
+          <path class="wf-arrow" d="M200,345 L230,345" marker-end="url(#wfArrow)"></path>
+
+          <rect class="wf-group" x="230" y="40" width="640" height="600" rx="16" stroke="var(--c-prd)"></rect>
+          <text class="wf-grouplabel" x="252" y="66" fill="var(--c-prd)">PRDAgent-Schleife</text>
+
+          <rect class="wf-box" x="340" y="100" width="300" height="64" rx="12"></rect>
+          <circle cx="340" cy="100" r="15" fill="var(--c-prd)"></circle>
+          <text class="wf-badge-num" x="340" y="100" text-anchor="middle" dominant-baseline="central">2</text>
+          <text class="wf-title" x="490" y="128" text-anchor="middle">Generate Initial PRD</text>
+          <text class="wf-sub" x="490" y="146" text-anchor="middle">PRDAgent · aus Transkript</text>
+
+          <path class="wf-arrow" d="M490,164 L490,224" marker-end="url(#wfArrow)"></path>
+
+          <rect class="wf-box" x="340" y="224" width="300" height="64" rx="12"></rect>
+          <circle cx="340" cy="224" r="15" fill="var(--c-critic)"></circle>
+          <text class="wf-badge-num" x="340" y="224" text-anchor="middle" dominant-baseline="central">3</text>
+          <text class="wf-title" x="490" y="252" text-anchor="middle">Get Feedback</text>
+          <text class="wf-sub" x="490" y="270" text-anchor="middle">Kritiker-Agent · prüft PRD</text>
+
+          <path class="wf-arrow" d="M490,288 L490,352" marker-end="url(#wfArrow)"></path>
+
+          <polygon class="wf-diamond" points="490,354 660,420 490,486 320,420"></polygon>
+          <circle cx="325" cy="357" r="15" fill="var(--c-neutral)"></circle>
+          <text class="wf-badge-num" x="325" y="357" text-anchor="middle" dominant-baseline="central">4</text>
+          <text class="wf-title" x="490" y="413" text-anchor="middle" font-size="12.5">PRD Refinement</text>
+          <text class="wf-title" x="490" y="429" text-anchor="middle" font-size="12.5">nötig?</text>
+          <text class="wf-sub" x="490" y="446" text-anchor="middle" font-size="9.5">Mensch-Klick oder Kritiker-Verdikt</text>
+
+          <path class="wf-arrow" d="M490,486 L490,524" marker-end="url(#wfArrow)"></path>
+          <text class="wf-arrowlabel" x="504" y="510">Nein</text>
+
+          <rect class="wf-box" x="340" y="530" width="300" height="64" rx="12"></rect>
+          <circle cx="340" cy="530" r="15" fill="var(--c-prd)"></circle>
+          <text class="wf-badge-num" x="340" y="530" text-anchor="middle" dominant-baseline="central">5</text>
+          <text class="wf-title" x="490" y="558" text-anchor="middle">Refine PRD</text>
+          <text class="wf-sub" x="490" y="576" text-anchor="middle">PRDAgent · adressiert Feedback</text>
+
+          <path class="wf-arrow" d="M340,562 C270,562 270,256 340,256" marker-end="url(#wfArrow)"></path>
+          <text class="wf-arrowlabel" x="258" y="412" text-anchor="middle" transform="rotate(-90 258 412)">zurück zu „Get Feedback“ · max. 5 Durchläufe</text>
+
+          <text class="wf-arrowlabel" x="672" y="412">Ja</text>
+          <path class="wf-arrow" d="M660,420 L920,420" marker-end="url(#wfArrow)"></path>
+
+          <rect class="wf-box" x="920" y="388" width="170" height="64" rx="12"></rect>
+          <circle cx="920" cy="388" r="15" fill="var(--c-neutral)"></circle>
+          <text class="wf-badge-num" x="920" y="388" text-anchor="middle" dominant-baseline="central">6</text>
+          <text class="wf-title" x="1005" y="416" text-anchor="middle">Final PRD</text>
+          <text class="wf-sub" x="1005" y="434" text-anchor="middle">freigegeben</text>
+
+          <path class="wf-arrow" d="M1090,420 L1170,420" marker-end="url(#wfArrow)"></path>
+
+          <rect class="wf-group" x="1130" y="350" width="280" height="160" rx="16" stroke="var(--c-ticket)"></rect>
+          <text class="wf-grouplabel" x="1150" y="376" fill="var(--c-ticket)">TicketCreationAgent</text>
+
+          <rect class="wf-box" x="1170" y="388" width="200" height="64" rx="12"></rect>
+          <circle cx="1170" cy="388" r="15" fill="var(--c-ticket)"></circle>
+          <text class="wf-badge-num" x="1170" y="388" text-anchor="middle" dominant-baseline="central">7</text>
+          <text class="wf-title" x="1270" y="416" text-anchor="middle">Parse PRD → JSON</text>
+          <text class="wf-sub" x="1270" y="434" text-anchor="middle">strukturierte Tickets</text>
+
+          <path class="wf-arrow" d="M1410,420 L1440,420" marker-end="url(#wfArrow)"></path>
+
+          <rect class="wf-box" x="1440" y="388" width="140" height="64" rx="12"></rect>
+          <circle cx="1440" cy="388" r="15" fill="var(--c-neutral)"></circle>
+          <text class="wf-badge-num" x="1440" y="388" text-anchor="middle" dominant-baseline="central">8</text>
+          <text class="wf-title" x="1510" y="416" text-anchor="middle" font-size="12.5">Kanban-Board</text>
+          <text class="wf-sub" x="1510" y="434" text-anchor="middle">Ausgabe (kein Jira/Linear)</text>
+
+          <path class="wf-arrow" d="M1510,452 L1510,614" marker-end="url(#wfArrow)"></path>
+
+          <rect class="wf-box" x="1120" y="620" width="420" height="70" rx="12"></rect>
+          <circle cx="1120" cy="620" r="15" fill="var(--c-neutral)"></circle>
+          <text class="wf-badge-num" x="1120" y="620" text-anchor="middle" dominant-baseline="central">9</text>
+          <text class="wf-title" x="1330" y="650" text-anchor="middle">Durchlauf im Verlauf speichern</text>
+          <text class="wf-sub" x="1330" y="668" text-anchor="middle">„Neuen Durchlauf starten“ für ein weiteres Produkt</text>
+
+          <path class="wf-arrow-dashed" d="M1120,655 L700,655 L700,705 L150,705 L150,383" marker-end="url(#wfArrow)"></path>
+          <text class="wf-arrowlabel" x="425" y="724" text-anchor="middle">Neuer Durchlauf (z.B. anderes Produkt) · Daten bleiben im Verlauf erhalten</text>
+        </svg>
+      </div>
+      <figcaption class="wf-caption">Schritte 2–5 laufen innerhalb des PRDAgent als Schleife, bis die Entscheidung (4) „Ja“ ergibt; Schritte 7–8 wandeln das freigegebene PRD in ein Ticket-Board um; Schritt 9 schließt den Durchlauf ab und ermöglicht per gestricheltem Pfeil einen neuen Durchlauf ab Schritt 1, ohne den gespeicherten Verlauf zu verlieren.</figcaption>
+    </figure>
+
+    <div class="wf-steps">
+      <div class="wf-step-row"><div class="wf-step-num">1</div><div class="wf-step-txt"><b>Meeting-Transkript einfügen</b> – die einzige Eingabequelle des Durchlaufs (manuell oder per Beispiel-Button).</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">2</div><div class="wf-step-txt"><b>Generate Initial PRD</b><span class="wf-agent-tag prd">PRDAgent</span> – erzeugt aus dem Transkript ein erstes strukturiertes PRD in Markdown.</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">3</div><div class="wf-step-txt"><b>Get Feedback</b><span class="wf-agent-tag critic">Kritiker-Agent</span> – bewertet das aktuelle PRD und liefert ein Verdikt (bereit / Überarbeitung nötig) mit Begründung.</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">4</div><div class="wf-step-txt"><b>PRD Refinement nötig?</b> – Entscheidung per Toggle: entweder klickt der Mensch „Weiter verfeinern“/„PRD ist fertig“, oder der Kritiker-Verdikt wird automatisch übernommen.</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">5</div><div class="wf-step-txt"><b>Refine PRD</b><span class="wf-agent-tag prd">PRDAgent</span> – überarbeitet das PRD anhand des Feedbacks; die Schleife springt danach automatisch zurück zu Schritt 3 (max. 5 Durchläufe als Sicherheitsnetz).</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">6</div><div class="wf-step-txt"><b>Final PRD</b> – das freigegebene Dokument, als Markdown herunterladbar und Eingabe für den nächsten Agenten.</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">7</div><div class="wf-step-txt"><b>Parse PRD into Structured Output</b><span class="wf-agent-tag ticket">TicketCreationAgent</span> – wandelt das PRD in striktes JSON mit Titel, Typ, Priorität und Akzeptanzkriterien pro Ticket um.</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">8</div><div class="wf-step-txt"><b>Kanban-Board</b> – die geparsten Tickets werden nach Priorität sortiert direkt in der App gerendert, statt sie an Jira/Linear zu übergeben.</div></div>
+      <div class="wf-step-row"><div class="wf-step-num">9</div><div class="wf-step-txt"><b>Verlauf &amp; neuer Durchlauf</b> – der Durchlauf wird automatisch gespeichert; „Neuen Durchlauf starten“ setzt die App zurück, ohne den Verlauf zu löschen.</div></div>
+    </div>
   </section>
 
   <section class="panel settings" id="settingsPanel" hidden>
@@ -1088,6 +1240,15 @@ button{font-family:var(--font-body);cursor:pointer}
     historyPanel.hidden = !open;
     historyBtn.setAttribute("aria-expanded", String(open));
   });
+
+  var workflowPanel = document.getElementById("workflowPanel");
+  var workflowBtn = document.getElementById("workflowBtn");
+  workflowBtn.addEventListener("click", function(){
+    var open = workflowPanel.hidden;
+    workflowPanel.hidden = !open;
+    workflowBtn.setAttribute("aria-expanded", String(open));
+  });
+
   document.getElementById("clearHistoryBtn").addEventListener("click", function(){
     if(!history.length) return;
     if(!confirm("Gesamten Verlauf (" + history.length + " Durchläufe) unwiderruflich löschen?")) return;
