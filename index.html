@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product Design Agent</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html,body{margin:0}
+[hidden]{display:none!important}
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --panel-2:#eceef1; --line:#d9dce1;
+  --fg:#15181d; --fg-dim:#5c6672;
+  --accent:#2458b3; --accent-ink:#f4f8ff;
+  --c-prd:#2458b3; --c-critic:#a6305a; --c-ticket:#157a6e;
+  --live:#c23b2e; --good:#1f8f66; --danger:#c23b2e;
+  --prio-high:#c23b2e; --prio-mid:#b5790a; --prio-low:#5c6672;
+  --font-display:'Fraunces','Iowan Old Style',serif;
+  --font-body:'IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151b; --panel:#171c24; --panel-2:#1e2430; --line:#2b323e;
+    --fg:#edf0f4; --fg-dim:#9aa5b3;
+    --accent:#6ea0ff; --accent-ink:#0c1930;
+    --c-prd:#6ea0ff; --c-critic:#e573a0; --c-ticket:#4bc7b4;
+    --live:#ff6b5b; --good:#4fd49b; --danger:#ff6b5b;
+    --prio-high:#ff6b5b; --prio-mid:#e2a63d; --prio-low:#9aa5b3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151b; --panel:#171c24; --panel-2:#1e2430; --line:#2b323e;
+  --fg:#edf0f4; --fg-dim:#9aa5b3;
+  --accent:#6ea0ff; --accent-ink:#0c1930;
+  --c-prd:#6ea0ff; --c-critic:#e573a0; --c-ticket:#4bc7b4;
+  --live:#ff6b5b; --good:#4fd49b; --danger:#ff6b5b;
+  --prio-high:#ff6b5b; --prio-mid:#e2a63d; --prio-low:#9aa5b3;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);padding-inline:16px}
+.app{max-width:1020px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-block:18px 36px}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;text-wrap:balance;margin:0}
+a{color:var(--accent)}
+button{font-family:var(--font-body);cursor:pointer}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font-size:1.4rem;letter-spacing:.2px}
+.brand .sub{font-size:.78rem;color:var(--fg-dim);font-family:var(--font-mono)}
+.tally-dot{width:11px;height:11px;border-radius:50%;background:var(--fg-dim);box-shadow:0 0 0 3px color-mix(in srgb, var(--fg-dim) 20%, transparent);transition:background .2s,box-shadow .2s;flex-shrink:0}
+.tally-dot.ok{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent)}
+.tally-dot.live{background:var(--live);box-shadow:0 0 0 4px color-mix(in srgb, var(--live) 30%, transparent);animation:pulse 1.1s ease-in-out infinite}
+.tally-dot.err{background:var(--danger)}
+@media (prefers-reduced-motion: reduce){.tally-dot.live{animation:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.status-text{font-family:var(--font-mono);font-size:.76rem;color:var(--fg-dim)}
+.icon-btn{height:38px;min-width:38px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:1rem;display:flex;align-items:center;justify-content:center}
+.icon-btn.text{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.04em}
+.icon-btn:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.settings{padding:16px;display:flex;flex-direction:column;gap:14px}
+.settings h2{font-size:1rem}
+.preset-row{display:flex;gap:8px;flex-wrap:wrap}
+.preset-btn{border:1px solid var(--line);background:var(--panel-2);color:var(--fg);border-radius:999px;padding:7px 14px;font-size:.82rem}
+.preset-btn.active{border-color:var(--accent);color:var(--accent)}
+.field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.field label{display:block;font-size:.76rem;color:var(--fg-dim);margin-bottom:4px;font-family:var(--font-mono)}
+.field input,.field select,.field textarea{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--fg);font-size:.9rem;min-width:0;font-family:var(--font-body)}
+.hint{font-size:.78rem;color:var(--fg-dim);line-height:1.5}
+.info-banner{display:flex;align-items:flex-start;gap:9px;background:color-mix(in srgb, var(--accent) 10%, var(--panel-2));border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line));border-radius:10px;padding:10px 12px;font-size:.82rem;color:var(--fg)}
+.info-banner .i{flex-shrink:0;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-style:italic;font-weight:600;font-size:.76rem;display:flex;align-items:center;justify-content:center;line-height:1}
+.settings-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{border:none;border-radius:9px;padding:10px 16px;font-size:.88rem;font-weight:500;background:var(--accent);color:var(--accent-ink)}
+.btn.secondary{background:var(--panel-2);color:var(--fg);border:1px solid var(--line)}
+.btn.small{padding:6px 12px;font-size:.78rem}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.save-note{font-size:.76rem;color:var(--good);font-family:var(--font-mono)}
+
+/* step cards */
+.step{padding:16px;display:flex;flex-direction:column;gap:12px}
+.step-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.step-num{font-family:var(--font-mono);font-size:.78rem;color:var(--fg-dim);border:1px solid var(--line);border-radius:999px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step.done .step-num{background:var(--good);color:var(--panel);border-color:var(--good)}
+.step-head h2{font-size:1.05rem}
+.step-agent{font-family:var(--font-mono);font-size:.68rem;border:1px solid var(--line);border-radius:999px;padding:2px 9px;margin-left:auto;color:var(--fg-dim)}
+.step-agent.prd{color:var(--c-prd);border-color:var(--c-prd)}
+.step-agent.critic{color:var(--c-critic);border-color:var(--c-critic)}
+.step-agent.ticket{color:var(--c-ticket);border-color:var(--c-ticket)}
+.step-desc{color:var(--fg-dim);font-size:.86rem;margin-top:-6px}
+.step-body{display:flex;flex-direction:column;gap:10px}
+.step-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.iter-badge{font-family:var(--font-mono);font-size:.72rem;color:var(--fg-dim);border:1px dashed var(--line);border-radius:999px;padding:3px 10px}
+
+.mode-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.mode-toggle button{border:none;background:var(--panel-2);color:var(--fg-dim);padding:6px 12px;font-size:.78rem;font-family:var(--font-mono)}
+.mode-toggle button.active{background:var(--accent);color:var(--accent-ink)}
+
+.doc-box{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel-2);max-height:420px;overflow-y:auto}
+.doc-box.empty{color:var(--fg-dim);font-size:.86rem;font-family:var(--font-mono);text-align:center;padding:24px}
+.doc-box h3,.doc-box h4{font-family:var(--font-display);margin:12px 0 6px;font-size:1rem}
+.doc-box h3:first-child,.doc-box h4:first-child{margin-top:0}
+.doc-box p{margin:0 0 8px;line-height:1.55;font-size:.9rem}
+.doc-box ul{margin:0 0 8px;padding-left:1.2em;line-height:1.55;font-size:.9rem}
+.feedback-box{border:1px solid color-mix(in srgb, var(--c-critic) 40%, var(--line));background:color-mix(in srgb, var(--c-critic) 7%, var(--panel-2));border-radius:10px;padding:12px 14px;font-size:.88rem;line-height:1.55}
+.feedback-box.clean{border-color:color-mix(in srgb, var(--good) 45%, var(--line));background:color-mix(in srgb, var(--good) 8%, var(--panel-2))}
+.verdict{font-family:var(--font-mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;color:var(--c-critic)}
+.feedback-box.clean .verdict{color:var(--good)}
+
+.spinner{display:inline-flex;align-items:center;gap:8px;font-size:.84rem;color:var(--fg-dim);font-family:var(--font-mono)}
+.spinner .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1s ease-in-out infinite}
+.error-box{border:1px solid var(--danger);background:color-mix(in srgb, var(--danger) 10%, var(--panel-2));border-radius:10px;padding:10px 12px;font-size:.84rem;color:var(--danger);font-family:var(--font-mono);white-space:pre-wrap}
+
+/* kanban */
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.board{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.col-head{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:.76rem;text-transform:uppercase;letter-spacing:.05em}
+.col-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.col-count{margin-left:auto;color:var(--fg-dim)}
+.col[data-prio="hoch"] .col-dot{background:var(--prio-high)}
+.col[data-prio="mittel"] .col-dot{background:var(--prio-mid)}
+.col[data-prio="niedrig"] .col-dot{background:var(--prio-low)}
+.col[data-prio="hoch"] .col-head{color:var(--prio-high)}
+.col[data-prio="mittel"] .col-head{color:var(--prio-mid)}
+.col[data-prio="niedrig"] .col-head{color:var(--prio-low)}
+.ticket-card{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--panel-2);display:flex;flex-direction:column;gap:6px}
+.ticket-title{font-weight:500;font-size:.9rem;line-height:1.3}
+.ticket-badges{display:flex;gap:6px;flex-wrap:wrap}
+.ticket-type{font-family:var(--font-mono);font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;border-radius:5px;padding:2px 6px;border:1px solid var(--line);color:var(--fg-dim)}
+.ticket-desc{font-size:.82rem;color:var(--fg-dim);line-height:1.45}
+.ticket-ac{margin:2px 0 0;padding-left:1.1em;font-size:.78rem;color:var(--fg-dim);line-height:1.5}
+.col-empty{font-size:.78rem;color:var(--fg-dim);font-family:var(--font-mono);border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center}
+
+.trace{padding:14px 16px 16px}
+.trace-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.trace h2{font-size:.85rem;color:var(--fg-dim);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.trace-legend{font-size:.76rem;color:var(--fg-dim);max-width:60ch;line-height:1.5}
+.trace-log{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto}
+.trace-log li{border-left:2px solid var(--line);padding-left:10px}
+.trace-log li.now{border-left-color:var(--accent)}
+.trace-log li.err{border-left-color:var(--danger)}
+.trace-row{display:flex;gap:10px;align-items:baseline;font-family:var(--font-mono);font-size:.8rem;color:var(--fg-dim)}
+.trace-row .t{flex-shrink:0;opacity:.7}
+.trace-row .label{color:var(--fg)}
+.trace-row .agent-tag{font-size:.65rem;border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.trace-detail{margin:4px 0 2px;font-size:.78rem}
+.trace-detail summary{cursor:pointer;color:var(--fg-dim);font-family:var(--font-mono)}
+.trace-detail pre{white-space:pre-wrap;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0 0;font-size:.76rem;line-height:1.45;max-height:220px;overflow-y:auto}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="tally-dot" id="statusDot" aria-hidden="true"></span>
+      <div>
+        <h1>Product Design Agent</h1>
+        <div class="sub">Meeting-Transkript → PRD → Dev-Tickets</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="status-text" id="statusText">nicht verbunden</span>
+      <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen" aria-expanded="false">⚙</button>
+    </div>
+  </header>
+
+  <section class="panel settings" id="settingsPanel" hidden>
+    <h2>Verbindung zum Modell</h2>
+    <div class="preset-row" id="presetRow"></div>
+    <div class="field-grid">
+      <div class="field">
+        <label for="baseUrlInput">Endpunkt-URL (OpenAI-kompatibel)</label>
+        <input id="baseUrlInput" type="text" placeholder="https://api.ai.rh-koeln.de">
+      </div>
+      <div class="field">
+        <label for="apiKeyInput">API-Key (nur in diesem Browser gespeichert)</label>
+        <input id="apiKeyInput" type="password" placeholder="Bearer-Token">
+      </div>
+      <div class="field">
+        <label for="modelFilter">Modell suchen</label>
+        <input id="modelFilter" type="text" placeholder="Modell filtern…" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="modelSelect">Modell</label>
+        <select id="modelSelect"><option value="">– zuerst „Modelle laden“ klicken –</option></select>
+      </div>
+    </div>
+    <div class="info-banner">
+      <span class="i" aria-hidden="true">i</span>
+      <span>Noch keinen API-Key für die Hochschul-API? Im Hochschulportal anfordern: <a href="https://portal.rh-koeln.de/chatai-access-token" target="_blank" rel="noopener">portal.rh-koeln.de/chatai-access-token</a></span>
+    </div>
+    <p class="hint" id="presetHint"></p>
+    <div class="settings-actions">
+      <button class="btn secondary" id="loadModelsBtn" type="button">Modelle laden</button>
+      <button class="btn" id="saveSettingsBtn" type="button">Speichern &amp; verbinden</button>
+      <span class="save-note" id="saveNote" hidden>gespeichert</span>
+    </div>
+    <p class="hint">Der Key verlässt diesen Browser nur Richtung der eingetragenen Endpunkt-URL. Auf einem gemeinsam genutzten Rechner danach besser wieder löschen.</p>
+  </section>
+
+  <!-- Step 1: Input -->
+  <section class="panel step" id="stepInput">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <h2>Meeting-Transkript</h2>
+    </div>
+    <p class="step-desc">Füge das Transkript eines Stakeholder-Meetings ein (oder lade das Beispiel). Der PRDAgent nutzt es als alleinige Quelle.</p>
+    <div class="step-body">
+      <div class="field"><textarea id="transcriptInput" rows="8" placeholder="Meeting-Transkript hier einfügen…"></textarea></div>
+      <div class="step-actions">
+        <button class="btn secondary" id="loadExampleBtn" type="button">Beispiel laden</button>
+        <button class="btn" id="generatePrdBtn" type="button">PRD generieren</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: PRD workshop -->
+  <section class="panel step" id="stepPrd" hidden>
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <h2>PRD-Werkstatt</h2>
+      <span class="step-agent prd">PRDAgent</span>
+    </div>
+    <p class="step-desc">Generate Initial PRD → Get Feedback (Kritiker-Agent) → PRD Refinement Required? → ggf. Refine PRD (Loop) → Final PRD.</p>
+    <div class="step-body">
+      <div id="prdBox" class="doc-box empty">Noch kein PRD generiert.</div>
+
+      <div class="step-actions">
+        <span class="iter-badge" id="iterBadge">Durchlauf 0</span>
+        <span style="font-family:var(--font-mono);font-size:.76rem;color:var(--fg-dim)">Entscheidung:</span>
+        <div class="mode-toggle">
+          <button type="button" id="modeManualBtn" class="active">Mensch</button>
+          <button type="button" id="modeAutoBtn">Automatisch (LLM)</button>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn secondary" id="getFeedbackBtn" type="button">Feedback einholen (Kritiker-Agent)</button>
+      </div>
+
+      <div id="feedbackArea"></div>
+
+      <div class="step-actions" id="decisionArea" hidden></div>
+    </div>
+  </section>
+
+  <!-- Step 3: Final PRD -->
+  <section class="panel step" id="stepFinal" hidden>
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <h2>Finales PRD</h2>
+    </div>
+    <p class="step-desc">Das PRD gilt als abgeschlossen und geht als Input an den TicketCreationAgent.</p>
+    <div class="step-body">
+      <div id="finalPrdBox" class="doc-box"></div>
+      <div class="step-actions">
+        <button class="btn secondary" id="downloadPrdBtn" type="button">PRD als Markdown herunterladen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4: Tickets -->
+  <section class="panel step" id="stepTickets" hidden>
+    <div class="step-head">
+      <span class="step-num">4</span>
+      <h2>Ticket-Erstellung</h2>
+      <span class="step-agent ticket">TicketCreationAgent</span>
+    </div>
+    <p class="step-desc">Parse PRD into Structured Output (JSON) → Tickets als Board rendern (statt Jira/Linear).</p>
+    <div class="step-body">
+      <div class="step-actions">
+        <button class="btn" id="generateTicketsBtn" type="button">Tickets aus PRD generieren</button>
+        <label class="hint" style="display:flex;align-items:center;gap:6px;margin-left:auto"><input type="checkbox" id="showJsonToggle" style="width:auto"> Rohes JSON anzeigen</label>
+      </div>
+      <div id="ticketsArea"></div>
+    </div>
+  </section>
+
+  <section class="panel trace">
+    <div class="trace-head">
+      <h2>Agenten-Protokoll</h2>
+      <p class="trace-legend">Jeder Schritt ist ein eigener LLM-Aufruf mit eigenem System-Prompt. Hier ist nachvollziehbar, welcher Agent wann welchen Prompt gesendet und welche Antwort bekommen hat.</p>
+    </div>
+    <ol class="trace-log" id="traceLog"></ol>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var PRESETS = [
+    { id:"hs", label:"Hochschul-API", baseUrl:"https://api.ai.rh-koeln.de", needsKey:true,
+      hint:"Trage deinen persönlichen API-Key der Hochschule ein. Modellnamen über „Modelle laden“ abrufen." },
+    { id:"ollama", label:"Ollama (lokal/Netzwerk)", baseUrl:"http://localhost:11434/v1", needsKey:false,
+      hint:"Ollama muss mit gesetzter Umgebungsvariable OLLAMA_ORIGINS=* gestartet sein, sonst blockiert der Browser die Anfrage (CORS)." },
+    { id:"lmstudio", label:"LM Studio (lokal/Netzwerk)", baseUrl:"http://localhost:1234/v1", needsKey:false,
+      hint:"Im LM Studio Server-Tab „Local Server“ starten und CORS aktivieren." },
+    { id:"custom", label:"Eigener Endpunkt", baseUrl:"", needsKey:true,
+      hint:"Beliebige OpenAI-kompatible URL eintragen." }
+  ];
+
+  var MAX_ITERATIONS = 5;
+
+  var EXAMPLE_TRANSCRIPT =
+"Moderatorin (Produktmanagerin): Danke, dass ihr alle da seid. Thema heute: unser Vorlesungsverzeichnis-Tool für Studierende. Die Support-Tickets zum Thema 'ich finde keinen freien Termin für eine Nachprüfung' häufen sich.\n"+
+"Dozent (Fachbereich Informatik): Stimmt, bei uns kommt das jede Woche vor. Studierende sehen zwar die Prüfungstermine, aber nicht, ob ein Raum oder Prüfer noch frei ist.\n"+
+"Studierendenvertreterin: Aus Studisicht wäre es super, wenn man wie bei einer Terminbuchung direkt sehen könnte: Datum, Uhrzeit, Raum, Prüfer, Kapazität – und sich selbst eintragen kann.\n"+
+"IT-Administrator: Wir haben eine bestehende REST-Schnittstelle zum Prüfungsamt-System, die freie Slots liefert. Die könnten wir anzapfen, ist aber nur lesend, keine Schreibrechte für uns.\n"+
+"Moderatorin: Okay, dann bräuchten wir für die Buchung selbst einen Workflow, der am Ende eine E-Mail ans Prüfungsamt schickt statt direkt zu schreiben.\n"+
+"Dozent: Wichtig wäre außerdem eine Konfliktprüfung – ein Studi darf sich nicht in zwei überschneidende Termine eintragen.\n"+
+"Studierendenvertreterin: Und eine mobile Ansicht, viele schauen das nur auf dem Handy zwischen zwei Vorlesungen.\n"+
+"IT-Administrator: Datenschutz ist ein Thema – wir dürfen nur die eigenen Buchungen anzeigen, nicht die von anderen Studierenden.\n"+
+"Moderatorin: Gibt es einen Zeitrahmen?\n"+
+"Dozent: Die nächste Prüfungsphase beginnt in sechs Wochen, bis dahin sollte zumindest eine erste Version stehen, die die größten Pain Points löst.\n"+
+"Moderatorin: Gut, fassen wir zusammen: Anzeige freier Prüfungstermine, Selbstbuchung mit E-Mail-Bestätigung ans Prüfungsamt, Konfliktprüfung, mobile Ansicht, nur eigene Buchungen sichtbar. Nice-to-have für später: Erinnerungs-Benachrichtigungen vor dem Termin. Reicht das fürs Erste?\n"+
+"IT-Administrator: Aus meiner Sicht ja. Noch offen: was passiert, wenn zwei Studierende gleichzeitig den letzten Slot buchen wollen – das müssen wir technisch noch klären.\n"+
+"Moderatorin: Guter Punkt, nehmen wir als offene Frage mit.";
+
+  // ---------- connection state ----------
+  var state = { baseUrl:"", apiKey:"", model:"", preset:"hs" };
+  function loadState(){
+    try{
+      var raw = localStorage.getItem("pda_config");
+      if(raw){
+        var saved = JSON.parse(raw);
+        state.baseUrl = saved.baseUrl || "";
+        state.apiKey = saved.apiKey || "";
+        state.model = saved.model || "";
+        state.preset = saved.preset || "hs";
+      }
+    }catch(e){}
+    if(!state.baseUrl){
+      var p = PRESETS.filter(function(p){return p.id===state.preset;})[0] || PRESETS[0];
+      state.baseUrl = p.baseUrl;
+    }
+  }
+  function saveState(){
+    try{ localStorage.setItem("pda_config", JSON.stringify(state)); }catch(e){}
+  }
+
+  // ---------- app state ----------
+  var app = {
+    transcript: "",
+    prd: null,
+    iteration: 0,
+    decisionMode: "manual",
+    lastFeedback: null,
+    lastFeedbackClean: false,
+    finalPrd: null,
+    tickets: null,
+    ticketsRaw: null
+  };
+
+  // ---------- helpers ----------
+  function escapeHtml(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  function inlineMd(s){
+    return s.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>");
+  }
+  function renderLite(text){
+    var esc = escapeHtml(text);
+    var lines = esc.split(/\n/);
+    var html = ""; var inList = false;
+    for(var i=0;i<lines.length;i++){
+      var line = lines[i].trim();
+      var hMatch = line.match(/^(#{1,4})\s+(.*)/);
+      if(hMatch){
+        if(inList){ html += "</ul>"; inList=false; }
+        var level = Math.min(hMatch[1].length + 2, 4);
+        html += "<h"+level+">"+inlineMd(hMatch[2])+"</h"+level+">";
+      } else if(/^[-*]\s+/.test(line)){
+        if(!inList){ html += "<ul>"; inList=true; }
+        html += "<li>"+inlineMd(line.replace(/^[-*]\s+/,""))+"</li>";
+      } else if(line===""){
+        if(inList){ html += "</ul>"; inList=false; }
+      } else {
+        if(inList){ html += "</ul>"; inList=false; }
+        html += "<p>"+inlineMd(line)+"</p>";
+      }
+    }
+    if(inList) html += "</ul>";
+    return html;
+  }
+  function fmtTime(){
+    var d = new Date();
+    function pad(n){ return (n<10?"0":"")+n; }
+    return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+  }
+  function download(filename, text){
+    var blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- trace log ----------
+  var traceLogEl = document.getElementById("traceLog");
+  function addTrace(agentTag, label, systemPrompt, userPrompt, response, kind){
+    var li = document.createElement("li");
+    if(kind) li.className = kind;
+    var row = document.createElement("div");
+    row.className = "trace-row";
+    var t = document.createElement("span"); t.className="t"; t.textContent = fmtTime();
+    var tag = document.createElement("span"); tag.className="agent-tag"; tag.textContent = agentTag;
+    var lbl = document.createElement("span"); lbl.className="label"; lbl.textContent = label;
+    row.appendChild(t); row.appendChild(tag); row.appendChild(lbl);
+    li.appendChild(row);
+    if(systemPrompt || userPrompt || response){
+      var det = document.createElement("details");
+      det.className = "trace-detail";
+      var sum = document.createElement("summary");
+      sum.textContent = "Prompt & Antwort anzeigen";
+      det.appendChild(sum);
+      if(systemPrompt){
+        var pre1 = document.createElement("pre");
+        pre1.textContent = "SYSTEM:\n"+systemPrompt;
+        det.appendChild(pre1);
+      }
+      if(userPrompt){
+        var pre2 = document.createElement("pre");
+        pre2.textContent = "USER:\n"+userPrompt;
+        det.appendChild(pre2);
+      }
+      if(response){
+        var pre3 = document.createElement("pre");
+        pre3.textContent = "ANTWORT:\n"+response;
+        det.appendChild(pre3);
+      }
+      li.appendChild(det);
+    }
+    traceLogEl.appendChild(li);
+    traceLogEl.scrollTop = traceLogEl.scrollHeight;
+    return li;
+  }
+  addTrace("SYS", "Bereit. Transkript einfügen und „PRD generieren“ klicken.");
+
+  // ---------- status ----------
+  var statusDot = document.getElementById("statusDot");
+  var statusText = document.getElementById("statusText");
+  function setStatus(kind, text){
+    statusDot.className = "tally-dot" + (kind ? " "+kind : "");
+    statusText.textContent = text;
+  }
+  async function checkConnection(){
+    if(!state.baseUrl || !state.model){ setStatus("", "nicht konfiguriert"); return; }
+    setStatus("", "prüfe Verbindung…");
+    try{
+      var headers = {};
+      if(state.apiKey) headers["Authorization"] = "Bearer "+state.apiKey;
+      var res = await fetch(state.baseUrl.replace(/\/$/,"")+"/v1/models", { headers: headers });
+      if(res.ok){ setStatus("ok", "verbunden · "+state.model); }
+      else { setStatus("err", "Fehler: HTTP "+res.status); }
+    }catch(e){ setStatus("err", "nicht erreichbar"); }
+  }
+
+  // ---------- chat call ----------
+  async function callChat(system, user){
+    var headers = { "Content-Type":"application/json" };
+    if(state.apiKey) headers["Authorization"] = "Bearer "+state.apiKey;
+    var res = await fetch(state.baseUrl.replace(/\/$/,"")+"/v1/chat/completions", {
+      method:"POST", headers: headers,
+      body: JSON.stringify({ model: state.model, messages:[ {role:"system",content:system}, {role:"user",content:user} ] })
+    });
+    if(!res.ok){
+      var bodyText = "";
+      try{ bodyText = await res.text(); }catch(e){}
+      throw new Error("HTTP "+res.status+(bodyText ? " – "+bodyText.slice(0,300) : ""));
+    }
+    var data = await res.json();
+    var content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    return content || "(leere Antwort)";
+  }
+  function requireConfigured(){
+    if(!state.baseUrl || !state.model){
+      alert("Bitte zuerst unter ⚙ Verbindung + Modell einrichten und speichern.");
+      return false;
+    }
+    return true;
+  }
+
+  // ==================================================================
+  // settings panel
+  // ==================================================================
+  var settingsPanel = document.getElementById("settingsPanel");
+  var settingsBtn = document.getElementById("settingsBtn");
+  var presetRow = document.getElementById("presetRow");
+  var presetHint = document.getElementById("presetHint");
+  var baseUrlInput = document.getElementById("baseUrlInput");
+  var apiKeyInput = document.getElementById("apiKeyInput");
+  var modelSelect = document.getElementById("modelSelect");
+  var modelFilter = document.getElementById("modelFilter");
+  var saveNote = document.getElementById("saveNote");
+
+  PRESETS.forEach(function(p){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "preset-btn"; b.textContent = p.label;
+    b.addEventListener("click", function(){
+      state.preset = p.id;
+      baseUrlInput.value = p.baseUrl;
+      presetHint.textContent = p.hint;
+      highlightPreset();
+    });
+    presetRow.appendChild(b);
+  });
+  function highlightPreset(){
+    Array.prototype.forEach.call(presetRow.children, function(btn, i){
+      btn.className = "preset-btn" + (PRESETS[i].id === state.preset ? " active" : "");
+    });
+    var p = PRESETS.filter(function(p){return p.id===state.preset;})[0];
+    if(p) presetHint.textContent = p.hint;
+  }
+  settingsBtn.addEventListener("click", function(){
+    settingsPanel.hidden = !settingsPanel.hidden;
+    settingsBtn.setAttribute("aria-expanded", String(!settingsPanel.hidden));
+  });
+
+  function populateModelSelect(models, preferredId){
+    modelSelect.innerHTML = "";
+    if(!models.length){
+      var empty = document.createElement("option");
+      empty.value = ""; empty.textContent = "– keine Modelle gefunden –";
+      modelSelect.appendChild(empty);
+      return;
+    }
+    var ids = models.map(function(m){ return m.id; });
+    if(preferredId && ids.indexOf(preferredId) === -1) ids.unshift(preferredId);
+    ids.forEach(function(id){
+      var opt = document.createElement("option");
+      opt.value = id; opt.textContent = id;
+      modelSelect.appendChild(opt);
+    });
+    modelSelect.value = (preferredId && ids.indexOf(preferredId) !== -1) ? preferredId : ids[0];
+  }
+  async function fetchModels(baseUrl, apiKey){
+    var headers = {};
+    if(apiKey) headers["Authorization"] = "Bearer "+apiKey;
+    var res = await fetch(baseUrl.replace(/\/$/,"")+"/v1/models", { headers: headers });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    var data = await res.json();
+    return data.data || [];
+  }
+  document.getElementById("loadModelsBtn").addEventListener("click", async function(){
+    var btn = this; var original = btn.textContent;
+    btn.disabled = true; btn.textContent = "lädt…";
+    try{
+      var models = await fetchModels(baseUrlInput.value, apiKeyInput.value);
+      populateModelSelect(models, state.model);
+      modelFilter.value = "";
+      btn.textContent = models.length + " Modelle gefunden";
+    }catch(e){
+      btn.textContent = "Fehler: "+e.message;
+    }
+    setTimeout(function(){ btn.textContent = original; btn.disabled = false; }, 2200);
+  });
+  modelFilter.addEventListener("input", function(){
+    var q = modelFilter.value.trim().toLowerCase();
+    Array.prototype.forEach.call(modelSelect.options, function(opt){
+      opt.hidden = q !== "" && opt.value && opt.value.toLowerCase().indexOf(q) === -1;
+    });
+  });
+  document.getElementById("saveSettingsBtn").addEventListener("click", function(){
+    state.baseUrl = baseUrlInput.value.trim();
+    state.apiKey = apiKeyInput.value.trim();
+    state.model = modelSelect.value.trim();
+    saveState();
+    saveNote.hidden = false;
+    setTimeout(function(){ saveNote.hidden = true; }, 2000);
+    checkConnection();
+  });
+
+  loadState();
+  baseUrlInput.value = state.baseUrl;
+  apiKeyInput.value = state.apiKey;
+  highlightPreset();
+  if(state.model){
+    populateModelSelect([{id:state.model}], state.model);
+  }
+  checkConnection();
+
+  // ==================================================================
+  // system prompts
+  // ==================================================================
+  var SYS_PRD_INITIAL =
+"Du bist ein erfahrener Product Manager. Du bekommst das Transkript eines Stakeholder-Meetings. "+
+"Erstelle daraus ein strukturiertes Product Requirements Document (PRD) in Markdown mit genau diesen Abschnitten: "+
+"## Problem / Hintergrund, ## Ziele, ## User Stories, ## Funktionale Anforderungen, ## Out of Scope, ## Offene Fragen. "+
+"Nutze ausschließlich, was im Transkript besprochen wurde. Wenn du etwas ergänzen musst, kennzeichne es explizit mit „Annahme:“. "+
+"Antworte nur mit dem PRD in Markdown, ohne Einleitung oder Nachsatz.";
+
+  var SYS_CRITIC =
+"Du bist ein kritischer Reviewer (z.B. Head of Engineering / UX Lead), der ein PRD vor der Umsetzung gegenliest. "+
+"Prüfe das PRD auf Lücken, Widersprüche, fehlende Akzeptanzkriterien, unklare Scope-Grenzen und Risiken. "+
+"Wenn du mindestens einen relevanten Kritikpunkt findest: beginne deine Antwort exakt mit der Zeile „VERDIKT: ÜBERARBEITUNG NÖTIG“, danach eine Leerzeile, dann 3-6 konkrete Kritikpunkte als Markdown-Liste. "+
+"Wenn das PRD bereits vollständig und umsetzungsreif ist: beginne exakt mit „VERDIKT: BEREIT“, danach eine Leerzeile und eine kurze Begründung (1-2 Sätze). "+
+"Antworte nur in diesem Format, ohne weitere Erklärungen.";
+
+  var SYS_REFINE =
+"Du bist Product Manager und überarbeitest ein bestehendes PRD anhand von Reviewer-Feedback. "+
+"Gib das vollständige, aktualisierte PRD in Markdown zurück, mit denselben Abschnitten wie zuvor (## Problem / Hintergrund, ## Ziele, ## User Stories, ## Funktionale Anforderungen, ## Out of Scope, ## Offene Fragen), "+
+"wobei du die genannten Kritikpunkte sichtbar adressierst. Antworte nur mit dem aktualisierten PRD, ohne Einleitung oder Nachsatz.";
+
+  var SYS_TICKETS =
+"Du bist technischer Program Manager. Wandle das folgende PRD in eine Liste von Entwicklungs-Tickets um. "+
+"Antworte AUSSCHLIESSLICH mit validem JSON, ohne Markdown-Codeblock, ohne Fließtext davor oder danach, in exakt diesem Format: "+
+'{"tickets":[{"title":"string","type":"feature|bug|chore","priority":"hoch|mittel|niedrig","description":"string","acceptanceCriteria":["string"]}]}. '+
+"Erzeuge 4 bis 10 Tickets, die zusammen den Scope des PRD abdecken. Priorität „hoch“ nur für Dinge, die für eine erste nutzbare Version zwingend nötig sind.";
+
+  // ==================================================================
+  // DOM refs for workflow
+  // ==================================================================
+  var transcriptInput = document.getElementById("transcriptInput");
+  var loadExampleBtn = document.getElementById("loadExampleBtn");
+  var generatePrdBtn = document.getElementById("generatePrdBtn");
+
+  var stepPrd = document.getElementById("stepPrd");
+  var prdBox = document.getElementById("prdBox");
+  var iterBadge = document.getElementById("iterBadge");
+  var modeManualBtn = document.getElementById("modeManualBtn");
+  var modeAutoBtn = document.getElementById("modeAutoBtn");
+  var getFeedbackBtn = document.getElementById("getFeedbackBtn");
+  var feedbackArea = document.getElementById("feedbackArea");
+  var decisionArea = document.getElementById("decisionArea");
+
+  var stepFinal = document.getElementById("stepFinal");
+  var finalPrdBox = document.getElementById("finalPrdBox");
+  var downloadPrdBtn = document.getElementById("downloadPrdBtn");
+
+  var stepTickets = document.getElementById("stepTickets");
+  var generateTicketsBtn = document.getElementById("generateTicketsBtn");
+  var ticketsArea = document.getElementById("ticketsArea");
+  var showJsonToggle = document.getElementById("showJsonToggle");
+
+  loadExampleBtn.addEventListener("click", function(){
+    transcriptInput.value = EXAMPLE_TRANSCRIPT;
+  });
+
+  function setBusy(btn, busyText){
+    btn.disabled = true;
+    btn._originalText = btn.textContent;
+    btn.textContent = busyText;
+  }
+  function clearBusy(btn){
+    btn.disabled = false;
+    if(btn._originalText) btn.textContent = btn._originalText;
+  }
+
+  // ---------- Step 1 -> Step 2: generate initial PRD ----------
+  generatePrdBtn.addEventListener("click", async function(){
+    if(!requireConfigured()) return;
+    var transcript = transcriptInput.value.trim();
+    if(!transcript){ transcriptInput.focus(); return; }
+    app.transcript = transcript;
+    app.iteration = 0;
+    app.lastFeedback = null;
+    app.lastFeedbackClean = false;
+    feedbackArea.innerHTML = "";
+    decisionArea.hidden = true;
+    stepFinal.hidden = true;
+    stepTickets.hidden = true;
+
+    setBusy(generatePrdBtn, "generiert…");
+    var traceLi = addTrace("PRDAgent", "Generate Initial PRD …", SYS_PRD_INITIAL, transcript, null, "now");
+    try{
+      var prd = await callChat(SYS_PRD_INITIAL, "Meeting-Transkript:\n\n"+transcript);
+      app.prd = prd;
+      app.iteration = 1;
+      traceLi.className = "";
+      addTrace("PRDAgent", "Initiales PRD erstellt (Durchlauf 1).", null, null, prd);
+      renderPrd();
+      stepPrd.hidden = false;
+      stepPrd.scrollIntoView({behavior:"smooth", block:"start"});
+    }catch(e){
+      traceLi.className = "err";
+      addTrace("PRDAgent", "Fehler: "+e.message, null, null, null, "err");
+      alert("Fehler beim Generieren des PRD: "+e.message);
+    }
+    clearBusy(generatePrdBtn);
+  });
+
+  function renderPrd(){
+    if(!app.prd){ prdBox.className = "doc-box empty"; prdBox.textContent = "Noch kein PRD generiert."; return; }
+    prdBox.className = "doc-box";
+    prdBox.innerHTML = renderLite(app.prd);
+    iterBadge.textContent = "Durchlauf "+app.iteration+" / max. "+MAX_ITERATIONS;
+  }
+
+  // ---------- decision mode toggle ----------
+  modeManualBtn.addEventListener("click", function(){
+    app.decisionMode = "manual";
+    modeManualBtn.className = "active"; modeAutoBtn.className = "";
+  });
+  modeAutoBtn.addEventListener("click", function(){
+    app.decisionMode = "auto";
+    modeAutoBtn.className = "active"; modeManualBtn.className = "";
+  });
+
+  // ---------- Get Feedback (Kritiker-Agent) ----------
+  getFeedbackBtn.addEventListener("click", function(){ runFeedback(); });
+
+  async function runFeedback(){
+    if(!requireConfigured()) return;
+    if(!app.prd) return;
+    setBusy(getFeedbackBtn, "holt Feedback…");
+    decisionArea.hidden = true;
+    var userMsg = "Aktuelles PRD (Durchlauf "+app.iteration+"):\n\n"+app.prd;
+    var traceLi = addTrace("Kritiker-Agent", "Get Feedback …", SYS_CRITIC, userMsg, null, "now");
+    try{
+      var feedback = await callChat(SYS_CRITIC, userMsg);
+      var isClean = /^VERDIKT:\s*BEREIT/i.test(feedback.trim());
+      app.lastFeedback = feedback;
+      app.lastFeedbackClean = isClean;
+      traceLi.className = "";
+      addTrace("Kritiker-Agent", isClean ? "Verdikt: bereit, keine Überarbeitung nötig." : "Verdikt: Überarbeitung nötig.", null, null, feedback);
+      renderFeedback();
+      renderDecision();
+    }catch(e){
+      traceLi.className = "err";
+      addTrace("Kritiker-Agent", "Fehler: "+e.message, null, null, null, "err");
+      alert("Fehler beim Einholen des Feedbacks: "+e.message);
+    }
+    clearBusy(getFeedbackBtn);
+  }
+
+  function renderFeedback(){
+    feedbackArea.innerHTML = "";
+    if(!app.lastFeedback) return;
+    var body = app.lastFeedback.replace(/^VERDIKT:[^\n]*\n*/i, "");
+    var div = document.createElement("div");
+    div.className = "feedback-box" + (app.lastFeedbackClean ? " clean" : "");
+    var verdict = document.createElement("span");
+    verdict.className = "verdict";
+    verdict.textContent = app.lastFeedbackClean ? "Verdikt: bereit" : "Verdikt: Überarbeitung nötig";
+    div.appendChild(verdict);
+    var content = document.createElement("div");
+    content.innerHTML = renderLite(body);
+    div.appendChild(content);
+    feedbackArea.appendChild(div);
+  }
+
+  // ---------- PRD Refinement Required? (decision diamond) ----------
+  function renderDecision(){
+    decisionArea.innerHTML = "";
+    decisionArea.hidden = false;
+
+    if(app.iteration >= MAX_ITERATIONS){
+      var warn = document.createElement("span");
+      warn.className = "hint";
+      warn.textContent = "Maximale Anzahl an Durchläufen ("+MAX_ITERATIONS+") erreicht — PRD wird automatisch finalisiert.";
+      decisionArea.appendChild(warn);
+      addTrace("SYS", "Max. Durchläufe erreicht, erzwinge Final PRD.", null, null, null);
+      finalizePrd();
+      return;
+    }
+
+    if(app.decisionMode === "auto"){
+      var btn = document.createElement("button");
+      btn.className = "btn"; btn.type = "button";
+      btn.textContent = "Agent entscheiden lassen (Verdikt: " + (app.lastFeedbackClean ? "BEREIT" : "ÜBERARBEITUNG NÖTIG") + ")";
+      btn.addEventListener("click", function(){
+        addTrace("SYS", "Automatische Entscheidung angewendet: " + (app.lastFeedbackClean ? "Final PRD." : "Refine PRD."));
+        if(app.lastFeedbackClean){ finalizePrd(); } else { refinePrd(); }
+      });
+      decisionArea.appendChild(btn);
+    } else {
+      var refineBtn = document.createElement("button");
+      refineBtn.className = "btn secondary"; refineBtn.type = "button";
+      refineBtn.textContent = "Weiter verfeinern (Refine PRD)";
+      refineBtn.addEventListener("click", function(){
+        addTrace("SYS", "Mensch entscheidet: Weiter verfeinern.");
+        refinePrd();
+      });
+      var doneBtn = document.createElement("button");
+      doneBtn.className = "btn"; doneBtn.type = "button";
+      doneBtn.textContent = "PRD ist fertig (Final PRD)";
+      doneBtn.addEventListener("click", function(){
+        addTrace("SYS", "Mensch entscheidet: PRD ist fertig.");
+        finalizePrd();
+      });
+      decisionArea.appendChild(refineBtn);
+      decisionArea.appendChild(doneBtn);
+    }
+  }
+
+  // ---------- Refine PRD (loop back to Get Feedback) ----------
+  async function refinePrd(){
+    if(!requireConfigured()) return;
+    decisionArea.innerHTML = "<span class=\"spinner\"><span class=\"dot\"></span>PRD wird überarbeitet…</span>";
+    var userMsg = "Bisheriges PRD:\n\n"+app.prd+"\n\nReviewer-Feedback:\n\n"+app.lastFeedback;
+    var traceLi = addTrace("PRDAgent", "Refine PRD …", SYS_REFINE, userMsg, null, "now");
+    try{
+      var newPrd = await callChat(SYS_REFINE, userMsg);
+      app.prd = newPrd;
+      app.iteration += 1;
+      traceLi.className = "";
+      addTrace("PRDAgent", "PRD überarbeitet (Durchlauf "+app.iteration+"). Zurück zu Get Feedback.", null, null, newPrd);
+      renderPrd();
+      decisionArea.hidden = true;
+      feedbackArea.innerHTML = "";
+      app.lastFeedback = null;
+      // Loop: automatically gather feedback again on the refined PRD
+      await runFeedback();
+    }catch(e){
+      traceLi.className = "err";
+      addTrace("PRDAgent", "Fehler: "+e.message, null, null, null, "err");
+      alert("Fehler beim Überarbeiten des PRD: "+e.message);
+      decisionArea.hidden = true;
+    }
+  }
+
+  // ---------- Final PRD ----------
+  function finalizePrd(){
+    app.finalPrd = app.prd;
+    stepPrd.classList.add("done");
+    decisionArea.innerHTML = "<span class=\"hint\" style=\"color:var(--good)\">PRD finalisiert.</span>";
+    addTrace("SYS", "Final PRD gesetzt. TicketCreationAgent kann starten.");
+    finalPrdBox.innerHTML = renderLite(app.finalPrd);
+    stepFinal.hidden = false;
+    stepTickets.hidden = false;
+    stepFinal.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  downloadPrdBtn.addEventListener("click", function(){
+    if(!app.finalPrd) return;
+    download("prd.md", app.finalPrd);
+  });
+
+  // ==================================================================
+  // Step 4: TicketCreationAgent
+  // ==================================================================
+  function tryParseTickets(raw){
+    var text = raw.trim();
+    // strip ```json fenced block if present
+    var fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if(fence) text = fence[1].trim();
+    // fall back: slice between first { and last }
+    try{
+      return JSON.parse(text);
+    }catch(e){
+      var start = text.indexOf("{");
+      var end = text.lastIndexOf("}");
+      if(start !== -1 && end !== -1 && end > start){
+        try{ return JSON.parse(text.slice(start, end+1)); }catch(e2){}
+      }
+      throw e;
+    }
+  }
+
+  generateTicketsBtn.addEventListener("click", async function(){
+    if(!requireConfigured()) return;
+    if(!app.finalPrd) return;
+    setBusy(generateTicketsBtn, "generiert…");
+    ticketsArea.innerHTML = "<span class=\"spinner\"><span class=\"dot\"></span>Parse PRD into Structured Output…</span>";
+    var traceLi = addTrace("TicketCreationAgent", "Parse PRD into Structured Output …", SYS_TICKETS, app.finalPrd, null, "now");
+    try{
+      var raw = await callChat(SYS_TICKETS, "PRD:\n\n"+app.finalPrd);
+      app.ticketsRaw = raw;
+      var parsed = tryParseTickets(raw);
+      if(!parsed || !Array.isArray(parsed.tickets)) throw new Error("JSON hat nicht das erwartete Format ({tickets:[...]})");
+      app.tickets = parsed.tickets;
+      traceLi.className = "";
+      addTrace("TicketCreationAgent", app.tickets.length+" Tickets erzeugt.", null, null, raw);
+      renderTickets();
+    }catch(e){
+      traceLi.className = "err";
+      addTrace("TicketCreationAgent", "Fehler beim Parsen: "+e.message, null, null, app.ticketsRaw, "err");
+      ticketsArea.innerHTML = "";
+      var err = document.createElement("div");
+      err.className = "error-box";
+      err.textContent = "Konnte Antwort nicht als JSON parsen: "+e.message+"\n\nRohe Antwort des Modells:\n"+(app.ticketsRaw||"");
+      ticketsArea.appendChild(err);
+    }
+    clearBusy(generateTicketsBtn);
+  });
+
+  showJsonToggle.addEventListener("change", function(){ renderTickets(); });
+
+  function renderTickets(){
+    ticketsArea.innerHTML = "";
+    if(!app.tickets){ return; }
+
+    if(showJsonToggle.checked){
+      var pre = document.createElement("pre");
+      pre.className = "trace-detail";
+      var preInner = document.createElement("pre");
+      preInner.textContent = JSON.stringify({tickets: app.tickets}, null, 2);
+      ticketsArea.appendChild(preInner);
+      return;
+    }
+
+    var prios = ["hoch","mittel","niedrig"];
+    var labels = {hoch:"Hoch", mittel:"Mittel", niedrig:"Niedrig"};
+    var board = document.createElement("div");
+    board.className = "board";
+
+    prios.forEach(function(prio){
+      var col = document.createElement("div");
+      col.className = "col"; col.setAttribute("data-prio", prio);
+      var head = document.createElement("div"); head.className = "col-head";
+      var dot = document.createElement("span"); dot.className = "col-dot";
+      var label = document.createElement("span"); label.textContent = labels[prio];
+      var items = app.tickets.filter(function(t){ return (t.priority||"").toLowerCase() === prio; });
+      var count = document.createElement("span"); count.className="col-count"; count.textContent = items.length;
+      head.appendChild(dot); head.appendChild(label); head.appendChild(count);
+      col.appendChild(head);
+
+      if(!items.length){
+        var empty = document.createElement("div");
+        empty.className = "col-empty"; empty.textContent = "Keine Tickets";
+        col.appendChild(empty);
+      }
+      items.forEach(function(t){
+        col.appendChild(ticketCard(t));
+      });
+      board.appendChild(col);
+    });
+    ticketsArea.appendChild(board);
+  }
+
+  function ticketCard(t){
+    var card = document.createElement("div");
+    card.className = "ticket-card";
+    var title = document.createElement("div"); title.className="ticket-title"; title.textContent = t.title || "(ohne Titel)";
+    var badges = document.createElement("div"); badges.className="ticket-badges";
+    var type = document.createElement("span"); type.className="ticket-type"; type.textContent = t.type || "feature";
+    badges.appendChild(type);
+    var desc = document.createElement("div"); desc.className="ticket-desc"; desc.textContent = t.description || "";
+    card.appendChild(title); card.appendChild(badges); card.appendChild(desc);
+    if(Array.isArray(t.acceptanceCriteria) && t.acceptanceCriteria.length){
+      var ul = document.createElement("ul"); ul.className="ticket-ac";
+      t.acceptanceCriteria.forEach(function(ac){
+        var li = document.createElement("li"); li.textContent = ac; ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    }
+    return card;
+  }
+
+})();
+</script>
+</body>
+</html>
