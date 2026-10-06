@@ -305,11 +305,13 @@ button{font-family:var(--font-body);cursor:pointer}
     <div class="history-head">
       <h2>Verlauf vergangener Durchläufe</h2>
       <span class="history-count" id="historyCount">0</span>
-      <div style="margin-left:auto;display:flex;gap:8px">
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn secondary small" id="exportHistoryMdBtn" type="button">Exportieren (Markdown)</button>
+        <button class="btn secondary small" id="exportHistoryJsonBtn" type="button">Exportieren (JSON)</button>
         <button class="btn secondary small" id="clearHistoryBtn" type="button">Verlauf leeren</button>
       </div>
     </div>
-    <p class="hint">Jeder abgeschlossene Durchlauf (PRD + Tickets) wird hier lokal im Browser gespeichert, damit mehrere Produkte/Transkripte nacheinander durchgespielt werden können.</p>
+    <p class="hint">Jeder abgeschlossene Durchlauf (PRD + Tickets) wird hier lokal im Browser gespeichert, damit mehrere Produkte/Transkripte nacheinander durchgespielt werden können. Der gesamte Verlauf lässt sich als Datei exportieren – Markdown zum Lesen/Abgeben, JSON als vollständige Datensicherung.</p>
     <div id="historyList"></div>
   </section>
 
@@ -1435,6 +1437,42 @@ button{font-family:var(--font-body);cursor:pointer}
     history = [];
     saveHistory();
     renderHistory();
+  });
+
+  document.getElementById("exportHistoryJsonBtn").addEventListener("click", function(){
+    if(!history.length){ alert("Der Verlauf ist noch leer – es gibt nichts zu exportieren."); return; }
+    download("verlauf.json", JSON.stringify(history, null, 2));
+  });
+
+  function ticketsToMarkdown(tickets){
+    if(!tickets || !tickets.length) return "_Keine Tickets._\n";
+    var labels = {hoch:"Hoch", mittel:"Mittel", niedrig:"Niedrig"};
+    return tickets.map(function(t){
+      var lines = [
+        "- **" + (t.title||"(ohne Titel)") + "** `" + (t.type||"feature") + "` · Priorität: " + (labels[(t.priority||"").toLowerCase()] || t.priority || "-"),
+        "  " + (t.description||"")
+      ];
+      if(Array.isArray(t.acceptanceCriteria) && t.acceptanceCriteria.length){
+        t.acceptanceCriteria.forEach(function(ac){ lines.push("  - [ ] " + ac); });
+      }
+      return lines.join("\n");
+    }).join("\n\n");
+  }
+
+  function buildHistoryMarkdown(){
+    var parts = ["# Verlauf: Product Design Agent\n\nExportiert am " + fmtDateTime(new Date().toISOString()) + " · " + history.length + " Durchläufe\n"];
+    history.forEach(function(entry, i){
+      parts.push("---\n");
+      parts.push("## " + (i+1) + ". " + entry.title);
+      parts.push("_Gespeichert: " + fmtDateTime(entry.savedAt) + " · " + entry.iteration + " PRD-Durchläufe · " + ((entry.tickets&&entry.tickets.length)||0) + " Tickets_\n");
+      parts.push("### Finales PRD\n\n" + (entry.prd||"") + "\n");
+      parts.push("### Tickets\n\n" + ticketsToMarkdown(entry.tickets) + "\n");
+    });
+    return parts.join("\n");
+  }
+  document.getElementById("exportHistoryMdBtn").addEventListener("click", function(){
+    if(!history.length){ alert("Der Verlauf ist noch leer – es gibt nichts zu exportieren."); return; }
+    download("verlauf.md", buildHistoryMarkdown());
   });
 
   function renderHistory(){
