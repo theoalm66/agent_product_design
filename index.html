@@ -58,6 +58,20 @@ button{font-family:var(--font-body);cursor:pointer}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .topbar-actions{display:flex;align-items:center;gap:10px}
 .status-text{font-family:var(--font-mono);font-size:.76rem;color:var(--fg-dim)}
+.topbar-divider{width:1px;height:22px;background:var(--line)}
+
+.setup-banner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:color-mix(in srgb, var(--accent) 12%, var(--panel));border:1px solid color-mix(in srgb, var(--accent) 45%, var(--line));border-radius:14px;padding:14px 18px}
+.setup-banner-icon{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-family:var(--font-mono);font-weight:600;font-size:.82rem;display:flex;align-items:center;justify-content:center}
+.setup-banner-text{flex:1;min-width:200px;font-size:.88rem;line-height:1.5}
+.setup-banner-sub{display:block;color:var(--fg-dim);font-size:.8rem;margin-top:2px}
+
+.tabbar{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:0}
+.tab-btn{border:none;background:none;color:var(--fg-dim);font-family:var(--font-body);font-weight:500;font-size:.92rem;padding:10px 6px;margin-bottom:-1px;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px}
+.tab-btn:hover{color:var(--fg)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-badge{font-family:var(--font-mono);font-size:.68rem;color:var(--fg-dim);border:1px solid var(--line);border-radius:999px;padding:0 7px}
+.tab-btn.active .tab-badge{color:var(--accent);border-color:var(--accent)}
+.tab-panel{display:flex;flex-direction:column;gap:14px}
 .icon-btn{height:38px;min-width:38px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:1rem;display:flex;align-items:center;justify-content:center}
 .icon-btn.text{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.04em}
 .icon-btn:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -219,12 +233,26 @@ button{font-family:var(--font-body);cursor:pointer}
     </div>
     <div class="topbar-actions">
       <span class="status-text" id="statusText">nicht verbunden</span>
-      <button class="icon-btn text" id="historyBtn" aria-label="Verlauf" aria-expanded="false">VERLAUF <span id="historyBtnCount"></span></button>
-      <button class="icon-btn text" id="workflowBtn" aria-label="Workflow-Diagramm" aria-expanded="false">WORKFLOW</button>
-      <button class="icon-btn" id="helpBtn" aria-label="Hilfe" aria-expanded="false">?</button>
-      <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen" aria-expanded="false">⚙</button>
+      <span class="topbar-divider" aria-hidden="true"></span>
+      <button class="icon-btn" id="helpBtn" aria-label="Hilfe" aria-expanded="false" title="Hilfe">?</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen" aria-expanded="false" title="Einstellungen">⚙</button>
     </div>
   </header>
+
+  <div class="setup-banner" id="setupBanner" role="status">
+    <span class="setup-banner-icon" aria-hidden="true">1</span>
+    <div class="setup-banner-text">
+      <strong>Start hier:</strong> Verbinde die App mit einem Sprachmodell, bevor du loslegst.
+      <span class="setup-banner-sub">Hochschul-API, Ollama, LM Studio oder ein eigener Endpunkt – siehe „Einstellungen“.</span>
+    </div>
+    <button class="btn" id="setupBannerBtn" type="button">Jetzt einrichten</button>
+  </div>
+
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Bereiche">
+    <button class="tab-btn active" id="tabBtnApp" type="button" role="tab" aria-selected="true" aria-controls="tabApp">Workflow starten</button>
+    <button class="tab-btn" id="tabBtnDiagram" type="button" role="tab" aria-selected="false" aria-controls="tabDiagram">Diagramm</button>
+    <button class="tab-btn" id="tabBtnHistory" type="button" role="tab" aria-selected="false" aria-controls="tabHistory">Verlauf <span id="historyBtnCount" class="tab-badge"></span></button>
+  </nav>
 
   <section class="panel help-panel" id="helpPanel">
     <h2>Wie funktioniert der Product Design Agent?</h2>
@@ -243,7 +271,7 @@ button{font-family:var(--font-body);cursor:pointer}
     </div>
   </section>
 
-  <section class="panel history-panel" id="historyPanel" hidden>
+  <section class="panel history-panel tab-panel" id="tabHistory" hidden>
     <div class="history-head">
       <h2>Verlauf vergangener Durchläufe</h2>
       <span class="history-count" id="historyCount">0</span>
@@ -255,7 +283,7 @@ button{font-family:var(--font-body);cursor:pointer}
     <div id="historyList"></div>
   </section>
 
-  <section class="panel wf-panel" id="workflowPanel" hidden>
+  <section class="panel wf-panel tab-panel" id="tabDiagram" hidden>
     <h2>Agenten-Workflow: PRD-zu-Tickets-Pipeline</h2>
     <p class="wf-intro">Nummerierter Ablauf dieser App: vom Meeting-Transkript über die PRD-Verfeinerungsschleife bis zum Ticket-Board. Jede Nummer entspricht genau einem LLM-Aufruf mit eigenem System-Prompt.</p>
     <div class="wf-legend">
@@ -410,6 +438,7 @@ button{font-family:var(--font-body);cursor:pointer}
     <p class="hint">Der Key verlässt diesen Browser nur Richtung der eingetragenen Endpunkt-URL. Auf einem gemeinsam genutzten Rechner danach besser wieder löschen.</p>
   </section>
 
+  <div class="tab-panel" id="tabApp">
   <!-- Step 1: Input -->
   <section class="panel step" id="stepInput">
     <div class="step-head">
@@ -499,6 +528,7 @@ button{font-family:var(--font-body);cursor:pointer}
     </div>
     <ol class="trace-log" id="traceLog"></ol>
   </section>
+  </div>
 
 </div>
 
@@ -699,9 +729,11 @@ button{font-family:var(--font-body);cursor:pointer}
   // ---------- status ----------
   var statusDot = document.getElementById("statusDot");
   var statusText = document.getElementById("statusText");
+  var setupBanner = document.getElementById("setupBanner");
   function setStatus(kind, text){
     statusDot.className = "tally-dot" + (kind ? " "+kind : "");
     statusText.textContent = text;
+    setupBanner.hidden = (kind === "ok");
   }
   async function checkConnection(){
     if(!state.baseUrl || !state.model){ setStatus("", "nicht konfiguriert"); return; }
@@ -771,10 +803,17 @@ button{font-family:var(--font-body);cursor:pointer}
     var p = PRESETS.filter(function(p){return p.id===state.preset;})[0];
     if(p) presetHint.textContent = p.hint;
   }
+  function openSettingsPanel(){
+    settingsPanel.hidden = false;
+    settingsBtn.setAttribute("aria-expanded", "true");
+    settingsPanel.scrollIntoView({behavior:"smooth", block:"start"});
+    baseUrlInput.focus();
+  }
   settingsBtn.addEventListener("click", function(){
     settingsPanel.hidden = !settingsPanel.hidden;
     settingsBtn.setAttribute("aria-expanded", String(!settingsPanel.hidden));
   });
+  document.getElementById("setupBannerBtn").addEventListener("click", openSettingsPanel);
 
   function populateModelSelect(models, preferredId){
     modelSelect.innerHTML = "";
@@ -1226,8 +1265,6 @@ button{font-family:var(--font-body);cursor:pointer}
   // ==================================================================
   // Verlauf-Panel
   // ==================================================================
-  var historyPanel = document.getElementById("historyPanel");
-  var historyBtn = document.getElementById("historyBtn");
   var historyBtnCount = document.getElementById("historyBtnCount");
   var historyCount = document.getElementById("historyCount");
   var historyList = document.getElementById("historyList");
@@ -1235,18 +1272,30 @@ button{font-family:var(--font-body);cursor:pointer}
   var newRunActions = document.getElementById("newRunActions");
   var newRunBtn = document.getElementById("newRunBtn");
 
-  historyBtn.addEventListener("click", function(){
-    var open = historyPanel.hidden;
-    historyPanel.hidden = !open;
-    historyBtn.setAttribute("aria-expanded", String(open));
-  });
-
-  var workflowPanel = document.getElementById("workflowPanel");
-  var workflowBtn = document.getElementById("workflowBtn");
-  workflowBtn.addEventListener("click", function(){
-    var open = workflowPanel.hidden;
-    workflowPanel.hidden = !open;
-    workflowBtn.setAttribute("aria-expanded", String(open));
+  // ==================================================================
+  // Tabs: Workflow starten / Diagramm / Verlauf
+  // ==================================================================
+  var TABS = [
+    { btn: "tabBtnApp", panel: "tabApp" },
+    { btn: "tabBtnDiagram", panel: "tabDiagram" },
+    { btn: "tabBtnHistory", panel: "tabHistory" }
+  ];
+  function setActiveTab(panelId){
+    TABS.forEach(function(t){
+      var btn = document.getElementById(t.btn);
+      var panel = document.getElementById(t.panel);
+      var active = t.panel === panelId;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", String(active));
+      panel.hidden = !active;
+    });
+    document.getElementById("settingsPanel").hidden = true;
+    document.getElementById("settingsBtn").setAttribute("aria-expanded", "false");
+    document.getElementById("helpPanel").hidden = true;
+    document.getElementById("helpBtn").setAttribute("aria-expanded", "false");
+  }
+  TABS.forEach(function(t){
+    document.getElementById(t.btn).addEventListener("click", function(){ setActiveTab(t.panel); });
   });
 
   document.getElementById("clearHistoryBtn").addEventListener("click", function(){
@@ -1259,7 +1308,8 @@ button{font-family:var(--font-body);cursor:pointer}
 
   function renderHistory(){
     historyCount.textContent = history.length;
-    historyBtnCount.textContent = history.length ? "(" + history.length + ")" : "";
+    historyBtnCount.textContent = history.length ? String(history.length) : "";
+    historyBtnCount.hidden = !history.length;
     historyList.innerHTML = "";
     if(!history.length){
       var empty = document.createElement("div");
