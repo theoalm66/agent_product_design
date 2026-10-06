@@ -238,6 +238,14 @@ button{font-family:var(--font-body);cursor:pointer}
 .prompt-version-list .v-label{font-family:var(--font-mono);color:var(--fg-dim)}
 .prompt-version-list li.active .v-label{color:var(--accent)}
 .prompt-version-list .v-time{color:var(--fg-dim);flex:1}
+
+/* CORS-Test tab */
+.cors-intro{color:var(--fg-dim);font-size:.86rem;line-height:1.55;max-width:80ch;margin:0}
+.info-banner code{font-family:var(--font-mono);background:var(--panel-2);border-radius:4px;padding:0 4px}
+.cors-status{font-weight:500;font-size:.88rem;padding:10px 14px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line)}
+.cors-status.ok{color:var(--good);border-color:var(--good)}
+.cors-status.err{color:var(--danger);border-color:var(--danger)}
+.cors-out{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:14px;font-family:var(--font-mono);font-size:.82rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:360px;overflow-y:auto}
 </style>
 </head>
 <body>
@@ -273,6 +281,7 @@ button{font-family:var(--font-body);cursor:pointer}
     <button class="tab-btn" id="tabBtnDiagram" type="button" role="tab" aria-selected="false" aria-controls="tabDiagram">Diagramm</button>
     <button class="tab-btn" id="tabBtnPrompts" type="button" role="tab" aria-selected="false" aria-controls="tabPrompts">Prompts</button>
     <button class="tab-btn" id="tabBtnHistory" type="button" role="tab" aria-selected="false" aria-controls="tabHistory">Verlauf <span id="historyBtnCount" class="tab-badge"></span></button>
+    <button class="tab-btn" id="tabBtnCors" type="button" role="tab" aria-selected="false" aria-controls="tabCors">CORS-Test</button>
   </nav>
 
   <section class="panel help-panel" id="helpPanel">
@@ -302,6 +311,47 @@ button{font-family:var(--font-body);cursor:pointer}
     </div>
     <p class="hint">Jeder abgeschlossene Durchlauf (PRD + Tickets) wird hier lokal im Browser gespeichert, damit mehrere Produkte/Transkripte nacheinander durchgespielt werden können.</p>
     <div id="historyList"></div>
+  </section>
+
+  <section class="panel cors-panel tab-panel" id="tabCors" hidden>
+    <h2>CORS-Test: API-Endpunkt direkt prüfen</h2>
+    <p class="cors-intro">Schickt eine rohe <code>fetch()</code>-Anfrage an einen OpenAI-kompatiblen Endpunkt – unabhängig vom restlichen Agenten-Workflow. Nützlich, um einen „CORS-Fehler“ oder eine falsche URL/Token/Body-Kombination isoliert zu diagnostizieren, bevor man im Workflow danach sucht.</p>
+
+    <div class="info-banner">
+      <span class="i" aria-hidden="true">i</span>
+      <span><strong>Was bedeutet CORS?</strong> Cross-Origin Resource Sharing ist ein Sicherheitsmechanismus des Browsers: Ruft dein JavaScript (hier: diese Seite) Daten von einer fremden Domain ab, blockiert der Browser das standardmäßig. Erlaubt ist es nur, wenn der Server per <code>Access-Control-Allow-Origin</code>-Header ausdrücklich zustimmt. Fehlt dieser Header, wirft der Browser einen CORS-Fehler – unabhängig davon, ob URL, Token und Body korrekt sind.</span>
+    </div>
+    <div class="info-banner">
+      <span class="i" aria-hidden="true">i</span>
+      <span><strong>Lösung bei CORS-Fehlern:</strong> Der Server muss CORS erlauben (bei geschützten APIs meist nicht änderbar), oder die Anfrage läuft über ein eigenes Backend/Proxy statt direkt aus dem Browser – das CORS-Problem betrifft nur Browser, keine Server-zu-Server-Aufrufe.</span>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label for="corsUrl">API-Endpunkt (URL)</label>
+        <input id="corsUrl" type="text" placeholder="https://api.ai.rh-koeln.de/v1/chat/completions">
+      </div>
+      <div class="field">
+        <label for="corsToken">Bearer Token</label>
+        <input id="corsToken" type="text" placeholder="API-Key">
+      </div>
+    </div>
+    <div class="field">
+      <label for="corsBody">Request Body (JSON)</label>
+      <textarea id="corsBody" class="prompt-textarea" rows="8">{
+  "model": "mein-modell",
+  "messages": [
+    { "role": "user", "content": "Sag kurz Hallo." }
+  ]
+}</textarea>
+    </div>
+    <div class="settings-actions">
+      <button class="btn secondary" id="corsFillBtn" type="button">Aus „Einstellungen“ übernehmen</button>
+      <button class="btn" id="corsSendBtn" type="button">Anfrage senden</button>
+    </div>
+
+    <div class="cors-status" id="corsStatus">Status: Warten auf Eingabe…</div>
+    <pre class="cors-out" id="corsOut">Hier erscheint die Ausgabe…</pre>
   </section>
 
   <section class="panel wf-panel tab-panel" id="tabDiagram" hidden>
@@ -1358,7 +1408,8 @@ button{font-family:var(--font-body);cursor:pointer}
     { btn: "tabBtnApp", panel: "tabApp" },
     { btn: "tabBtnDiagram", panel: "tabDiagram" },
     { btn: "tabBtnPrompts", panel: "tabPrompts" },
-    { btn: "tabBtnHistory", panel: "tabHistory" }
+    { btn: "tabBtnHistory", panel: "tabHistory" },
+    { btn: "tabBtnCors", panel: "tabCors" }
   ];
   function setActiveTab(panelId){
     TABS.forEach(function(t){
@@ -1608,6 +1659,62 @@ button{font-family:var(--font-body);cursor:pointer}
 
   loadHistory();
   renderHistory();
+
+  // ==================================================================
+  // CORS-Test-Tab: rohe fetch()-Anfrage unabhängig vom Workflow
+  // ==================================================================
+  var corsUrl = document.getElementById("corsUrl");
+  var corsToken = document.getElementById("corsToken");
+  var corsBody = document.getElementById("corsBody");
+  var corsStatus = document.getElementById("corsStatus");
+  var corsOut = document.getElementById("corsOut");
+
+  document.getElementById("corsFillBtn").addEventListener("click", function(){
+    if(state.baseUrl) corsUrl.value = state.baseUrl.replace(/\/$/,"") + "/v1/chat/completions";
+    if(state.apiKey) corsToken.value = state.apiKey;
+    if(state.model){
+      try{
+        var parsed = JSON.parse(corsBody.value);
+        parsed.model = state.model;
+        corsBody.value = JSON.stringify(parsed, null, 2);
+      }catch(e){}
+    }
+  });
+
+  document.getElementById("corsSendBtn").addEventListener("click", async function(){
+    var btn = this;
+    var url = corsUrl.value.trim();
+    var token = corsToken.value.trim();
+    var bodyText = corsBody.value.trim();
+    if(!url){ corsUrl.focus(); return; }
+
+    corsStatus.className = "cors-status";
+    corsStatus.textContent = "Status: Anfrage wird gesendet…";
+    corsOut.textContent = "läuft…";
+    btn.disabled = true;
+
+    try{
+      var headers = { "Content-Type": "application/json" };
+      if(token) headers["Authorization"] = "Bearer " + token;
+      var res = await fetch(url, { method: "POST", headers: headers, body: bodyText });
+
+      if(res.ok){
+        corsStatus.className = "cors-status ok";
+        corsStatus.textContent = "Status: Verbindung erfolgreich [" + res.status + " " + res.statusText + "]";
+      } else {
+        corsStatus.className = "cors-status err";
+        corsStatus.textContent = "Status: Fehler [" + res.status + " " + res.statusText + "]";
+      }
+      var text = await res.text();
+      try{ corsOut.textContent = JSON.stringify(JSON.parse(text), null, 2); }
+      catch(e){ corsOut.textContent = text; }
+    }catch(err){
+      corsStatus.className = "cors-status err";
+      corsStatus.textContent = "Status: Netzwerk- oder CORS-Fehler";
+      corsOut.textContent = "Die Anfrage wurde vom Browser blockiert oder der Server ist nicht erreichbar.\n\nDetails: " + err;
+    }
+    btn.disabled = false;
+  });
 
 })();
 </script>
