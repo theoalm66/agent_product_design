@@ -515,6 +515,16 @@ button{font-family:var(--font-body);cursor:pointer}
       <span class="save-note" id="saveNote" hidden>gespeichert</span>
     </div>
     <p class="hint">Der Key verlässt diesen Browser nur Richtung der eingetragenen Endpunkt-URL. Auf einem gemeinsam genutzten Rechner danach besser wieder löschen.</p>
+
+    <h2>Daten sichern &amp; übertragen</h2>
+    <p class="hint">Verbindungseinstellungen, Verlauf und bearbeitete Prompts als eine Datei sichern – zum Übertragen auf ein anderes Gerät oder einen anderen Browser. Dort über „Datei importieren“ wieder einspielen.</p>
+    <div class="settings-actions">
+      <button class="btn secondary" id="exportAllBtn" type="button">Alles exportieren (JSON)</button>
+      <button class="btn secondary" id="importAllBtn" type="button">Datei importieren…</button>
+      <input type="file" id="importAllFile" accept="application/json" hidden>
+      <span class="save-note" id="importAllNote" hidden></span>
+    </div>
+    <p class="hint">Achtung: Die Export-Datei enthält den API-Key im Klartext (falls eingetragen). Nicht öffentlich teilen.</p>
   </section>
 
   <div class="tab-panel" id="tabApp">
@@ -1473,6 +1483,87 @@ button{font-family:var(--font-body);cursor:pointer}
   document.getElementById("exportHistoryMdBtn").addEventListener("click", function(){
     if(!history.length){ alert("Der Verlauf ist noch leer – es gibt nichts zu exportieren."); return; }
     download("verlauf.md", buildHistoryMarkdown());
+  });
+
+  // ==================================================================
+  // Alles exportieren/importieren (Verbindung + Verlauf + Prompts) –
+  // zum Mitnehmen auf ein anderes Gerät / einen anderen Browser.
+  // ==================================================================
+  var importAllNote = document.getElementById("importAllNote");
+
+  document.getElementById("exportAllBtn").addEventListener("click", function(){
+    var bundle = {
+      schema: "pda_export_v1",
+      exportedAt: new Date().toISOString(),
+      config: state,
+      history: history,
+      promptVersions: promptVersions
+    };
+    download("product-design-agent-backup.json", JSON.stringify(bundle, null, 2));
+  });
+
+  document.getElementById("importAllBtn").addEventListener("click", function(){
+    document.getElementById("importAllFile").click();
+  });
+
+  document.getElementById("importAllFile").addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var data;
+      try{ data = JSON.parse(reader.result); }
+      catch(err){ alert("Konnte Datei nicht lesen: keine gültige JSON-Datei."); e.target.value = ""; return; }
+
+      var hasConfig = data.config && typeof data.config === "object";
+      var hasHistory = Array.isArray(data.history);
+      var hasPrompts = data.promptVersions && typeof data.promptVersions === "object";
+      if(!hasConfig && !hasHistory && !hasPrompts){
+        alert("Diese Datei enthält keine erkennbaren Daten (Verbindung/Verlauf/Prompts) zum Importieren.");
+        e.target.value = "";
+        return;
+      }
+
+      var summary = [];
+      if(hasConfig) summary.push("Verbindungseinstellungen");
+      if(hasHistory) summary.push(data.history.length + " Durchläufe im Verlauf");
+      if(hasPrompts) summary.push(Object.keys(data.promptVersions).length + " bearbeitete Prompt(s)");
+      var ok = confirm(
+        "Gefunden: " + summary.join(", ") + ".\n\n" +
+        "Import ersetzt die aktuellen lokalen Daten in diesem Browser (Verbindung, Verlauf und Prompt-Versionen). " +
+        "Fortfahren?"
+      );
+      if(!ok){ e.target.value = ""; return; }
+
+      if(hasConfig){
+        state.baseUrl = data.config.baseUrl || "";
+        state.apiKey = data.config.apiKey || "";
+        state.model = data.config.model || "";
+        state.preset = data.config.preset || "hs";
+        saveState();
+        baseUrlInput.value = state.baseUrl;
+        apiKeyInput.value = state.apiKey;
+        highlightPreset();
+        if(state.model) populateModelSelect([{id: state.model}], state.model);
+        checkConnection();
+      }
+      if(hasHistory){
+        history = data.history;
+        saveHistory();
+        renderHistory();
+      }
+      if(hasPrompts){
+        promptVersions = data.promptVersions;
+        savePromptVersions();
+        renderPromptList();
+      }
+
+      importAllNote.textContent = "importiert: " + summary.join(", ");
+      importAllNote.hidden = false;
+      setTimeout(function(){ importAllNote.hidden = true; }, 4000);
+      e.target.value = "";
+    };
+    reader.readAsText(file);
   });
 
   function renderHistory(){
